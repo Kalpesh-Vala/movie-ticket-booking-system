@@ -64,7 +64,8 @@ class Query:
     async def get_user_bookings(self, user_id: str) -> List[BookingType]:
         """Get all bookings for a user"""
         db = await get_database()
-        bookings_cursor = db.bookings.find({"user_id": user_id}).sort("created_at", -1)
+        bookings_cursor = db.bookings.find({"user_id": user_id})
+        bookings_cursor = bookings_cursor.sort("created_at", -1)
         bookings = await bookings_cursor.to_list(length=100)
         
         return [
