@@ -1,0 +1,90 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: booking-service
+    url: http://booking-service:8000
+    tags:
+      - booking
+
+routes:
+  - name: graphql-endpoint
+    service: booking-service
+    paths:
+      - /graphql
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: false
+
+plugins:
+  # JWT Authentication Plugin
+  - name: jwt
+    route: graphql-endpoint
+    config:
+      header_names:
+        - Authorization
+      uri_param_names:
+        - jwt
+      cookie_names:
+        - jwt
+      claims_to_verify:
+        - exp
+        - iat
+      key_claim_name: iss
+      secret_is_base64: false
+      run_on_preflight: false
+    tags:
+      - authentication
+
+  # Rate Limiting Plugin
+  - name: rate-limiting
+    route: graphql-endpoint
+    config:
+      minute: 200
+      policy: local
+      hide_client_headers: false
+      fault_tolerant: true
+    tags:
+      - rate-limiting
+
+  # CORS Plugin for web clients
+  - name: cors
+    route: graphql-endpoint
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+      exposed_headers:
+        - X-Auth-Token
+      credentials: true
+      max_age: 3600
+    tags:
+      - cors
+
+consumers:
+  - username: movie-app
+    tags:
+      - application
+
+jwt_secrets:
+  - consumer: movie-app
+    key: movie-ticket-booking-system
+    secret: your-super-secret-jwt-key-change-in-production
+    tags:
+      - jwt-secret
