@@ -8,11 +8,34 @@ from pydantic import BaseModel
 from typing import Optional
 import uuid
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from enum import Enum
 import random
+import logging
+
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Try to import event publisher, but handle gracefully if RabbitMQ is not available
+try:
+    from event_publisher import publish_payment_event, cleanup_event_publisher
+    EVENT_PUBLISHER_AVAILABLE = True
+    logger.info("Event publisher loaded successfully")
+except Exception as e:
+    logger.warning(f"Event publisher not available: {e}")
+    EVENT_PUBLISHER_AVAILABLE = False
+    
+    # Create dummy functions if event publisher fails
+    async def publish_payment_event(event_type, data):
+        logger.info(f"Would publish event: {event_type} with data: {data}")
+    
+    async def cleanup_event_publisher():
+        logger.info("No event publisher to cleanup")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Payment Service", version="1.0.0")
 
@@ -99,7 +122,7 @@ async def process_payment(payment_request: PaymentRequest):
                 "gateway_status": "APPROVED",
                 "processing_time_ms": random.randint(500, 2000)
             }
-            failure_reason = None
+            failure_reason = ""  # Empty string instead of None
         else:
             status = PaymentStatus.FAILED
             message = "Payment processing failed"
@@ -119,14 +142,33 @@ async def process_payment(payment_request: PaymentRequest):
             payment_method=payment_request.payment_method,
             status=status,
             payment_details=sanitize_payment_details(payment_request.payment_details),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             gateway_response=gateway_response,
             failure_reason=failure_reason
         )
 
         # Save transaction log to MongoDB
-        await db.transaction_logs.insert_one(transaction_log.dict())
+        await db.transaction_logs.insert_one(transaction_log.model_dump())
+
+        # CRITICAL: Publish payment event for notification service
+        if payment_success:
+            await publish_payment_event("payment.success", {
+                "booking_id": payment_request.booking_id,
+                "transaction_id": transaction_id,
+                "amount": payment_request.amount,
+                "payment_method": payment_request.payment_method.value,
+                "gateway_response": gateway_response
+            })
+        else:
+            await publish_payment_event("payment.failed", {
+                "booking_id": payment_request.booking_id,
+                "transaction_id": transaction_id,
+                "amount": payment_request.amount,
+                "payment_method": payment_request.payment_method.value,
+                "failure_reason": failure_reason,
+                "gateway_response": gateway_response
+            })
 
         # Prepare response
         response = PaymentResponse(
@@ -151,12 +193,13 @@ async def process_payment(payment_request: PaymentRequest):
             payment_method=payment_request.payment_method,
             status=PaymentStatus.FAILED,
             payment_details=sanitize_payment_details(payment_request.payment_details),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            gateway_response={"error": "system_error", "message": str(e)},
             failure_reason=error_message
         )
         
-        await db.transaction_logs.insert_one(error_transaction.dict())
+        await db.transaction_logs.insert_one(error_transaction.model_dump())
         
         return PaymentResponse(
             success=False,
@@ -229,6 +272,10 @@ async def get_transaction(transaction_id: str):
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
+    # Convert ObjectId to string for JSON serialization
+    if "_id" in transaction:
+        transaction["_id"] = str(transaction["_id"])
+    
     return transaction
 
 
@@ -263,8 +310,8 @@ async def process_refund(transaction_id: str, reason: str):
         payment_method=original_transaction["payment_method"],
         status=PaymentStatus.REFUNDED,
         payment_details=original_transaction["payment_details"],
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         gateway_response={
             "refund_reference": f"ref_{uuid.uuid4().hex[:12]}",
             "original_transaction": transaction_id,
@@ -272,7 +319,7 @@ async def process_refund(transaction_id: str, reason: str):
         }
     )
     
-    await db.transaction_logs.insert_one(refund_transaction.dict())
+    await db.transaction_logs.insert_one(refund_transaction.model_dump())
     
     # Update original transaction status
     await db.transaction_logs.update_one(
@@ -280,10 +327,19 @@ async def process_refund(transaction_id: str, reason: str):
         {
             "$set": {
                 "status": PaymentStatus.REFUNDED,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
+    
+    # Publish refund event
+    await publish_payment_event("payment.refunded", {
+        "booking_id": original_transaction["booking_id"],
+        "original_transaction_id": transaction_id,
+        "refund_transaction_id": refund_transaction_id,
+        "refund_amount": original_transaction["amount"],
+        "reason": reason
+    })
     
     return {
         "success": True,
@@ -296,6 +352,13 @@ async def process_refund(transaction_id: str, reason: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "payment-service"}
+
+
+# Add startup and shutdown events
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on app shutdown"""
+    await cleanup_event_publisher()
 
 
 if __name__ == "__main__":
