@@ -1,0 +1,302 @@
+# Compiled class files
+*.class
+
+# Log files
+*.log
+logs/
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+# But keep generated sources for easier deployment (only .java files, not .class)
+!target/generated-sources/
+!target/generated-test-sources/
+target/generated-sources/**/*.class
+target/generated-test-sources/**/*.class
+target/classes/
+target/test-classes/
+
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# STS (Spring Tool Suite)
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# IntelliJ IDEA
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+
+# External tool builders
+.externalToolBuilders/
+
+# Locally stored "Eclipse launch configurations"
+*.launch
+
+# PyDev specific (Python IDE for Eclipse)
+*.pydevproject
+
+# CDT-specific (C/C++ Development Tooling)
+.cproject
+
+# CDT- autotools
+.autotools
+
+# Java annotation processor (APT)
+.apt_generated_tests/
+
+# Scala IDE specific
+.cache
+.history
+.lib/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Application specific
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Spring Boot
+HELP.md
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Docker
+.dockerignore
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.backup
+*.bak
+
+# Test output
+test-output/
+
+# Coverage reports
+/coverage/
+*.lcov
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Protocol buffer generated files
+# Note: Including generated sources for easier deployment and collaboration
+# **/generated-sources/
+# **/generated-test-sources/
+
+# gRPC generated files
+# Note: Including generated gRPC files for easier deployment and collaboration
+# **/*Grpc.java
+# **/*OuterClass.java
+
+# JaCoCo coverage reports
+jacoco.xml
+jacoco.csv
+jacoco/
+
+# Checkstyle reports
+checkstyle-result.xml
+
+# PMD reports
+pmd.xml
+
+# SpotBugs reports
+spotbugs.xml
+
+# Local development files
+*.local
+
+# JUnit test reports
+TEST-*.xml
+
+# Surefire test reports
+**/target/surefire-reports/
+
+# Failsafe test reports
+**/target/failsafe-reports/
+
+# Application logs
+application.log
+application-*.log
+
+# Actuator sensitive endpoints data
+/actuator/
+
+# H2 Database files (if used for testing)
+*.h2.db
+*.trace.db
+*.lock.db
+
+# Redis dump files (if used)
+dump.rdb
+
+# Elasticsearch data (if used)
+/data/
+
+# Solr data (if used)
+/solr/
+
+# Configuration files with sensitive data
+**/config/database.properties
+**/config/secrets.properties
+
+# JProfiler
+*.jprofiler
+
+# YourKit
+*.yk
+
+# JRebel
+rebel.xml
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Cursive Clojure plugin
+.idea/replstate.xml
+
+# SonarLint plugin
+.idea/sonarlint/
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# CMake
+cmake-build-*/
+
+# Mongo Explorer plugin
+.idea/**/mongoSettings.xml
+
+# File-based project format
+*.iws
+
+# IntelliJ out folder
+out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Cursive Clojure plugin
+.idea/replstate.xml
+
+# SonarLint plugin
+.idea/sonarlint/
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# Editor-based Rest Client
+.idea/httpRequests
+
+# Android studio 3.1+ serialized cache file
+.idea/caches/build_file_checksums.ser
