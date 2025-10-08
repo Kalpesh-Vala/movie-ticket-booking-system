@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  cinema-postgres:
+    image: postgres:15-alpine
+    container_name: cinema-postgres
+    environment:
+      POSTGRES_DB: cinema_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5433:5432"  # Use different port to avoid conflicts
+    volumes:
+      - cinema_postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/db/migration/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./src/main/resources/db/migration/sample_data.sql:/docker-entrypoint-initdb.d/02-sample_data.sql:ro
+      - ./src/main/resources/db/migration/generate_seats.sql:/docker-entrypoint-initdb.d/03-generate_seats.sql:ro
+    networks:
+      - cinema-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cinema_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Cinema Service
+  cinema-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinema-service
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://cinema-postgres:5432/cinema_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      
+      # JPA Configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+      
+      # Server Configuration
+      SERVER_PORT: 8002
+      GRPC_SERVER_PORT: 9090
+      
+      # Logging Configuration
+      LOGGING_LEVEL_COM_MOVIETICKET: INFO
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
+      LOGGING_LEVEL_ORG_HIBERNATE: WARN
+      
+      # Connection Pool Configuration
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: 20000
+      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: 300000
+      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: 1200000
+      
+    ports:
+      - "8002:8002"  # REST API
+      - "9090:9090"  # gRPC
+    networks:
+      - cinema-network
+    depends_on:
+      cinema-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cinema-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cinema.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "8080:80"
+    networks:
+      - cinema-network
+    depends_on:
+      - cinema-postgres
+    restart: unless-stopped
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+networks:
+  cinema-network:
+    driver: bridge
+    name: cinema-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  cinema_postgres_data:
+    driver: local
+    name: cinema_postgres_data
+  pgadmin_data:
+    driver: local
+    name: cinema_pgadmin_data
