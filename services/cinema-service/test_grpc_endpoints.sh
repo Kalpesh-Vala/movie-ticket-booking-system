@@ -2,7 +2,11 @@
 
 # gRPC Cinema Service Testing Script
 
-echo "=========================================="
+echoecho -e "\n${YELLOW}Listing available services...${NC}"
+grpcurl -plaintext $GRPC_HOST list
+
+echo -e "\n${YELLOW}Listing methods for cinema.CinemaService...${NC}"
+grpcurl -plaintext $GRPC_HOST list cinema.CinemaService======================================="
 echo "Cinema Service gRPC Endpoint Testing"
 echo "=========================================="
 
@@ -62,70 +66,41 @@ grpcurl -plaintext $GRPC_HOST list CinemaService
 # 1. Cinema Service Methods
 echo -e "\n${BLUE}=== CINEMA SERVICE METHODS ===${NC}"
 
-# Get all cinemas
-test_grpc_method "CinemaService" "GetAllCinemas" "Get All Cinemas" '{}'
-
-# Get cinema by ID
-test_grpc_method "CinemaService" "GetCinemaById" "Get Cinema by ID" '{"id": "cinema-1"}'
-
-# Get screens by cinema ID
-test_grpc_method "CinemaService" "GetScreensByCinemaId" "Get Screens by Cinema ID" '{"cinemaId": "cinema-1"}'
-
-# Get all movies
-test_grpc_method "CinemaService" "GetAllMovies" "Get All Movies" '{}'
-
-# Get movie by ID
-test_grpc_method "CinemaService" "GetMovieById" "Get Movie by ID" '{"id": "movie-1"}'
-
-# Get showtimes by screen ID
-test_grpc_method "CinemaService" "GetShowtimesByScreenId" "Get Showtimes by Screen ID" '{"screenId": "screen-1"}'
-
-# Get seats by showtime ID
-test_grpc_method "CinemaService" "GetSeatsByShowtimeId" "Get Seats by Showtime ID" '{"showtimeId": "showtime-1"}'
-
-# Get available seats
-test_grpc_method "CinemaService" "GetAvailableSeats" "Get Available Seats" '{"showtimeId": "showtime-1"}'
+# Get seat availability
+test_grpc_method "cinema.CinemaService" "CheckSeatAvailability" "Check Seat Availability" '{"showtime_id": "showtime-1", "seat_numbers": ["A01", "A02"]}'
 
 # Lock seats
-test_grpc_method "CinemaService" "LockSeats" "Lock Seats" '{
-    "showtimeId": "showtime-1",
-    "seatNumbers": ["A1", "A2"],
-    "userId": "test-user-123"
+test_grpc_method "cinema.CinemaService" "LockSeats" "Lock Seats" '{
+    "showtime_id": "showtime-1",
+    "seat_numbers": ["A01", "A02"],
+    "booking_id": "test-booking-123",
+    "lock_duration_seconds": 300
 }'
 
-# Check seat status
-test_grpc_method "CinemaService" "GetSeatsByShowtimeId" "Check Seat Status After Lock" '{"showtimeId": "showtime-1"}'
+# Get showtime details
+test_grpc_method "cinema.CinemaService" "GetShowtimeDetails" "Get Showtime Details" '{"showtime_id": "showtime-1"}'
 
-# Release seats
-test_grpc_method "CinemaService" "ReleaseSeats" "Release Seats" '{
-    "showtimeId": "showtime-1",
-    "seatNumbers": ["A1", "A2"]
+# Release seat lock
+test_grpc_method "cinema.CinemaService" "ReleaseSeatLock" "Release Seat Lock" '{
+    "lock_id": "test-lock-id",
+    "booking_id": "test-booking-123"
 }'
 
-# Search movies
-test_grpc_method "CinemaService" "SearchMovies" "Search Movies" '{"title": "Avengers"}'
-
-# Search showtimes
-test_grpc_method "CinemaService" "SearchShowtimes" "Search Showtimes" '{
-    "movieId": "movie-1",
-    "date": "2025-01-15"
+# Confirm seat booking
+test_grpc_method "cinema.CinemaService" "ConfirmSeatBooking" "Confirm Seat Booking" '{
+    "lock_id": "test-lock-id",
+    "booking_id": "test-booking-123",
+    "user_id": "test-user-123"
 }'
 
 # Test error cases
 echo -e "\n${BLUE}=== ERROR HANDLING ===${NC}"
 
-# Non-existent cinema
-test_grpc_method "CinemaService" "GetCinemaById" "Non-existent Cinema" '{"id": "non-existent"}'
+# Non-existent showtime
+test_grpc_method "cinema.CinemaService" "CheckSeatAvailability" "Non-existent Showtime" '{"showtime_id": "non-existent", "seat_numbers": ["A01"]}'
 
-# Non-existent movie
-test_grpc_method "CinemaService" "GetMovieById" "Non-existent Movie" '{"id": "non-existent"}'
-
-# Invalid seat lock
-test_grpc_method "CinemaService" "LockSeats" "Invalid Seat Lock" '{
-    "showtimeId": "showtime-1",
-    "seatNumbers": ["INVALID_SEAT"],
-    "userId": "test-user-123"
-}'
+# Invalid seat numbers
+test_grpc_method "cinema.CinemaService" "CheckSeatAvailability" "Invalid Seat Numbers" '{"showtime_id": "showtime-1", "seat_numbers": ["INVALID_SEAT"]}'
 
 echo -e "\n${GREEN}=========================================="
 echo "gRPC Testing Complete!"

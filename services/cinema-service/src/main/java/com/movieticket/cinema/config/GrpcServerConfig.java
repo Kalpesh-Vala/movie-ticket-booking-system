@@ -3,6 +3,7 @@ package com.movieticket.cinema.config;
 import com.movieticket.cinema.grpc.CinemaServiceImpl;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.protobuf.services.ProtoReflectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,10 +28,12 @@ public class GrpcServerConfig {
     public void start() throws IOException {
         server = ServerBuilder.forPort(grpcPort)
             .addService(cinemaServiceImpl)
+            .addService(ProtoReflectionService.newInstance())
             .build()
             .start();
 
         System.out.println("gRPC server started on port " + grpcPort);
+        System.out.println("gRPC reflection service enabled");
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

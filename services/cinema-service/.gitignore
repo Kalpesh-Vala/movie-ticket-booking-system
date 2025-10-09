@@ -26,13 +26,9 @@ replay_pid*
 
 # Maven
 target/
-# But keep generated sources for easier deployment (only .java files, not .class)
-!target/generated-sources/
-!target/generated-test-sources/
-target/generated-sources/**/*.class
-target/generated-test-sources/**/*.class
-target/classes/
-target/test-classes/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.properties
 
 pom.xml.tag
 pom.xml.releaseBackup
@@ -137,8 +133,6 @@ application-prod.properties
 # Spring Boot
 HELP.md
 !.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
 # Docker
 .dockerignore
