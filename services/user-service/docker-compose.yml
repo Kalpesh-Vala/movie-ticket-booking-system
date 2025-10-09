@@ -1,5 +1,7 @@
+version: '3.8'
+
 services:
-  # MongoDB Database
+  # ---------------- MongoDB ----------------
   user-mongodb:
     image: mongo:7.0
     container_name: user-service-mongodb
@@ -9,20 +11,20 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: admin123
       MONGO_INITDB_DATABASE: movie_booking
     ports:
-      - "27018:27017"  # Different port to avoid conflicts
+      - "27018:27017"  # Host 27018 -> Container 27017
     volumes:
       - user_mongodb_data:/data/db
       - ../../init-scripts/mongo:/docker-entrypoint-initdb.d:ro
     networks:
       - user-service-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username=admin", "--password=admin123", "--authenticationDatabase=admin", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # User Service
+  # ---------------- User Service ----------------
   user-service:
     build:
       context: .
@@ -32,11 +34,11 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - PORT=8001
-      - MONGODB_URI=mongodb://admin:admin123@user-mongodb:27017/movie_booking?authSource=admin
-      - JWT_SECRET=super-secret-jwt-key-for-production-change-this
-      - ENVIRONMENT=production
-      - GIN_MODE=release
+      PORT: 8001
+      MONGODB_URI: mongodb://admin:admin123@user-mongodb:27017/movie_booking?authSource=admin
+      JWT_SECRET: super-secret-jwt-key-for-production-change-this
+      ENVIRONMENT: production
+      GIN_MODE: release
     depends_on:
       user-mongodb:
         condition: service_healthy
@@ -49,10 +51,12 @@ services:
       retries: 3
       start_period: 40s
 
+# ---------------- Networks ----------------
 networks:
   user-service-network:
     driver: bridge
 
+# ---------------- Volumes ----------------
 volumes:
   user_mongodb_data:
     driver: local
