@@ -1,52 +1,35 @@
 """
-Comprehensive Test Suite for Payment Service
-Tests payment processing, transaction logging, refunds, and error handling
+Comprehensive unit tests for the Payment Service
+Tests payment processing, event publishing, transaction logging, and error handling.
 """
 
-import pytest
 import asyncio
 import json
+import pytest
 import uuid
-from httpx import AsyncClient
+from datetime import datetime, timezone
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
-from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
-from unittest.mock import AsyncMock, patch
-import os
+from httpx import AsyncClient
 
-from main import app, PaymentMethod, PaymentStatus
+from main import app, PaymentMethod, PaymentStatus, PaymentRequest, TransactionLog
+from event_publisher import PaymentEventPublisher, publish_payment_event
 
 
 class TestPaymentService:
-    """Test class for Payment Service functionality"""
-    
-    @pytest.fixture(scope="session")
-    def event_loop(self):
-        """Create an instance of the default event loop for the test session."""
-        loop = asyncio.get_event_loop_policy().new_event_loop()
-        yield loop
-        loop.close()
+    """Test cases for Payment Service API endpoints"""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client"""
+        return TestClient(app)
 
     @pytest.fixture
     async def async_client(self):
         """Create async test client"""
         async with AsyncClient(app=app, base_url="http://test") as client:
             yield client
-
-    @pytest.fixture
-    def sync_client(self):
-        """Create sync test client for simple tests"""
-        return TestClient(app)
-
-    @pytest.fixture
-    async def mongo_client(self):
-        """Create MongoDB test client"""
-        client = AsyncIOMotorClient("mongodb://localhost:27017")
-        db = client.test_movie_booking
-        yield db
-        # Cleanup
-        await db.transaction_logs.delete_many({})
-        client.close()
 
     @pytest.fixture
     def sample_payment_request(self):

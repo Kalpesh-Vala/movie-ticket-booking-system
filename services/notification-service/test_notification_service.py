@@ -1,53 +1,36 @@
 """
-Comprehensive Test Suite for Notification Service
-Tests event consumption, notification sending, and error handling
+Comprehensive unit tests for the Notification Service
+Tests the worker functionality including RabbitMQ message processing,
+event handling, idempotency, and notification sending.
 """
 
-import pytest
 import asyncio
 import json
+import pytest
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, patch, MagicMock
-import aio_pika
-import redis.asyncio as redis
-from motor.motor_asyncio import AsyncIOMotorClient
-
-# Import the notification worker
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+from unittest.mock import AsyncMock, MagicMock, patch
 from worker import NotificationWorker
 
 
-class TestNotificationService:
-    """Test class for Notification Service functionality"""
-    
-    @pytest.fixture(scope="session")
-    def event_loop(self):
-        """Create an instance of the default event loop for the test session."""
-        loop = asyncio.get_event_loop_policy().new_event_loop()
-        yield loop
-        loop.close()
+class TestNotificationWorker:
+    """Test cases for NotificationWorker class"""
 
     @pytest.fixture
-    async def redis_client(self):
-        """Create Redis test client"""
-        client = redis.from_url("redis://localhost:6379/1")  # Use test database
-        yield client
-        # Cleanup
-        await client.flushdb()
-        await client.close()
-
-    @pytest.fixture
-    async def mongo_client(self):
-        """Create MongoDB test client"""
-        client = AsyncIOMotorClient("mongodb://localhost:27017")
-        db = client.test_notification_service
-        yield db
-        # Cleanup
-        await db.notification_logs.delete_many({})
+    async def worker(self):
+        """Create a NotificationWorker instance for testing"""
+        worker = NotificationWorker()
+        # Mock external dependencies
+        worker.redis_client = AsyncMock()
+        worker.mongo_client = AsyncMock()
+        worker.db = AsyncMock()
+        worker.connection = AsyncMock()
+        worker.channel = AsyncMock()
+        worker.exchange = AsyncMock()
+        worker.queue = AsyncMock()
+        worker.payment_queue = AsyncMock()
+        
+        return worker
         client.close()
 
     @pytest.fixture

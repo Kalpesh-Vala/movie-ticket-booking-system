@@ -145,6 +145,10 @@ payment_event_publisher = PaymentEventPublisher()
 async def publish_payment_event(event_type: str, transaction_data: Dict[str, Any]):
     """Helper function to publish payment events"""
     try:
+        # Ensure publisher is initialized
+        if not payment_event_publisher._initialized:
+            await payment_event_publisher.initialize()
+        
         if event_type == "payment.success":
             await payment_event_publisher.publish_payment_success_event(transaction_data)
         elif event_type == "payment.failed":

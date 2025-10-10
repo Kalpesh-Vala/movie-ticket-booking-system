@@ -61,6 +61,7 @@ class PaymentStatus(str, Enum):
 
 class PaymentRequest(BaseModel):
     booking_id: str
+    user_id: str
     amount: float
     payment_method: PaymentMethod
     payment_details: dict  # Card details, wallet info, etc.
@@ -154,20 +155,28 @@ async def process_payment(payment_request: PaymentRequest):
         # CRITICAL: Publish payment event for notification service
         if payment_success:
             await publish_payment_event("payment.success", {
+                "event_id": str(uuid.uuid4()),
+                "event_type": "payment.success",
                 "booking_id": payment_request.booking_id,
                 "transaction_id": transaction_id,
                 "amount": payment_request.amount,
                 "payment_method": payment_request.payment_method.value,
-                "gateway_response": gateway_response
+                "gateway_response": gateway_response,
+                "user_id": payment_request.user_id,  # Ensure user_id is included
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
         else:
             await publish_payment_event("payment.failed", {
+                "event_id": str(uuid.uuid4()),
+                "event_type": "payment.failed",
                 "booking_id": payment_request.booking_id,
                 "transaction_id": transaction_id,
                 "amount": payment_request.amount,
                 "payment_method": payment_request.payment_method.value,
                 "failure_reason": failure_reason,
-                "gateway_response": gateway_response
+                "gateway_response": gateway_response,
+                "user_id": payment_request.user_id,  # Ensure user_id is included
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
         # Prepare response

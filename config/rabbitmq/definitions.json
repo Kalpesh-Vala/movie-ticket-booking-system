@@ -43,6 +43,24 @@
       "arguments": {
         "x-dead-letter-exchange": "movie_app_events.dlx"
       }
+    },
+    {
+      "name": "notification.payment_events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "movie_app_events.dlx"
+      }
+    },
+    {
+      "name": "payment.processing_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "movie_app_events.dlx"
+      }
     }
   ],
   "exchanges": [
@@ -88,6 +106,38 @@
       "destination": "notification.booking_events",
       "destination_type": "queue",
       "routing_key": "booking.refunded",
+      "arguments": {}
+    },
+    {
+      "source": "movie_app_events",
+      "vhost": "/",
+      "destination": "notification.payment_events",
+      "destination_type": "queue",
+      "routing_key": "payment.success",
+      "arguments": {}
+    },
+    {
+      "source": "movie_app_events",
+      "vhost": "/",
+      "destination": "notification.payment_events",
+      "destination_type": "queue",
+      "routing_key": "payment.failed",
+      "arguments": {}
+    },
+    {
+      "source": "movie_app_events",
+      "vhost": "/",
+      "destination": "notification.payment_events",
+      "destination_type": "queue",
+      "routing_key": "payment.refund",
+      "arguments": {}
+    },
+    {
+      "source": "movie_app_events",
+      "vhost": "/",
+      "destination": "payment.processing_queue",
+      "destination_type": "queue",
+      "routing_key": "payment.process",
       "arguments": {}
     }
   ]
