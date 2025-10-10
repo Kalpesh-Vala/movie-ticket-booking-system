@@ -2,13 +2,90 @@ _format_version: "3.0"
 _transform: true
 
 services:
+  # User Service
+  - name: user-service
+    url: http://user-service:8080
+    tags:
+      - user
+      - authentication
+
+  # Cinema Service  
+  - name: cinema-service
+    url: http://cinema-service:8002
+    tags:
+      - cinema
+      - movies
+
+  # Booking Service (GraphQL)
   - name: booking-service
-    url: http://booking-service:8000
+    url: http://booking-service:8004
     tags:
       - booking
+      - graphql
+
+  # Payment Service
+  - name: payment-service
+    url: http://payment-service:8003
+    tags:
+      - payment
+
+  # Notification Service
+  - name: notification-service
+    url: http://notification-service:8084
+    tags:
+      - notification
 
 routes:
-  - name: graphql-endpoint
+  # User Service Routes
+  - name: user-routes
+    service: user-service
+    paths:
+      - /api/users
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: true
+
+  # Cinema Service Routes
+  - name: cinema-routes
+    service: cinema-service
+    paths:
+      - /api/v1/cinemas
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: false
+
+  # Booking Service Routes
+  - name: booking-routes
+    service: booking-service
+    paths:
+      - /api/bookings
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: true
+
+  # Booking Service GraphQL
+  - name: booking-graphql
     service: booking-service
     paths:
       - /graphql
@@ -21,46 +98,50 @@ routes:
       - https
     strip_path: false
 
+  # Payment Service Routes
+  - name: payment-routes
+    service: payment-service
+    paths:
+      - /api/payments
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: true
+
+  # Notification Service Routes
+  - name: notification-routes
+    service: notification-service
+    paths:
+      - /api/notifications
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: true
+
 plugins:
-  # JWT Authentication Plugin
-  - name: jwt
-    route: graphql-endpoint
-    config:
-      header_names:
-        - Authorization
-      uri_param_names:
-        - jwt
-      cookie_names:
-        - jwt
-      claims_to_verify:
-        - exp
-        - iat
-      key_claim_name: iss
-      secret_is_base64: false
-      run_on_preflight: false
-    tags:
-      - authentication
-
-  # Rate Limiting Plugin
-  - name: rate-limiting
-    route: graphql-endpoint
-    config:
-      minute: 200
-      policy: local
-      hide_client_headers: false
-      fault_tolerant: true
-    tags:
-      - rate-limiting
-
-  # CORS Plugin for web clients
+  # Global CORS Plugin
   - name: cors
-    route: graphql-endpoint
     config:
       origins:
         - "*"
       methods:
         - GET
         - POST
+        - PUT
+        - DELETE
+        - PATCH
         - OPTIONS
       headers:
         - Accept
@@ -77,14 +158,12 @@ plugins:
     tags:
       - cors
 
-consumers:
-  - username: movie-app
+  # Global Rate Limiting Plugin
+  - name: rate-limiting
+    config:
+      minute: 1000
+      policy: local
+      hide_client_headers: false
+      fault_tolerant: true
     tags:
-      - application
-
-jwt_secrets:
-  - consumer: movie-app
-    key: movie-ticket-booking-system
-    secret: your-super-secret-jwt-key-change-in-production
-    tags:
-      - jwt-secret
+      - rate-limiting

@@ -1,7 +1,9 @@
 -- Cinema database initialization script
 
--- Create databases
-CREATE DATABASE IF NOT EXISTS cinema_db;
+-- Create cinema_db database (using psql meta-command to handle errors gracefully)
+\set ON_ERROR_STOP off
+CREATE DATABASE cinema_db;
+\set ON_ERROR_STOP on
 
 -- Switch to cinema_db
 \c cinema_db;
