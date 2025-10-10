@@ -71,7 +71,6 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-      - ./config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
     networks:
       - movie-network
     healthcheck:
@@ -155,9 +154,9 @@ services:
     environment:
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/movie_booking?authSource=admin
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
-      PORT: 8001
+      PORT: 8080
     ports:
-      - "8001:8001"
+      - "8080:8080"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -196,11 +195,11 @@ services:
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/movie_booking?authSource=admin
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
       CINEMA_SERVICE_GRPC_URL: cinema-service:9090
-      USER_SERVICE_REST_URL: http://user-service:8001
+      USER_SERVICE_REST_URL: http://user-service:8080
       PAYMENT_SERVICE_REST_URL: http://payment-service:8003
-      PORT: 8000
+      PORT: 8004
     ports:
-      - "8010:8000"  # Different external port to avoid conflict
+      - "8004:8004"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -243,6 +242,9 @@ services:
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/movie_booking?authSource=admin
       REDIS_URL: redis://redis:6379
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      PORT: 8084
+    ports:
+      - "8084:8084"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -280,7 +282,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "8080:80"
+      - "8085:80"
     depends_on:
       postgres:
         condition: service_healthy
