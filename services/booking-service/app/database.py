@@ -21,8 +21,8 @@ async def connect_to_mongo():
     
     # Get MongoDB connection string from environment
     mongo_url = os.getenv(
-        "MONGODB_URL", 
-        "mongodb://admin:password@localhost:27017/movietickets?authSource=admin"
+        "MONGODB_URI", 
+        "mongodb://admin:admin123@localhost:27017/movie_booking?authSource=admin"
     )
     
     try:
@@ -31,7 +31,7 @@ async def connect_to_mongo():
         # Test the connection
         await client.admin.command('ping')
         
-        database = client.movietickets
+        database = client.movie_booking
         
         # Create indexes for better performance
         await create_indexes()

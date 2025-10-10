@@ -61,14 +61,22 @@ class ShowtimeDetails(BaseModel):
     end_time: datetime
     base_price: float
     available_seats: List[str]
+    movie_title: Optional[str] = "Unknown Movie"
+    cinema_name: Optional[str] = "Unknown Cinema"
 
 
 class User(BaseModel):
     """Model for user details from user service"""
     id: str
     email: str
-    full_name: str
+    first_name: str
+    last_name: str
     phone: Optional[str] = None
+    
+    @property
+    def full_name(self) -> str:
+        """Get full name from first and last name"""
+        return f"{self.first_name} {self.last_name}".strip()
 
 
 class PaymentRequest(BaseModel):

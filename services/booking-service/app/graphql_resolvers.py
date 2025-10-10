@@ -209,12 +209,12 @@ class Mutation:
     async def process_payment(
         self, 
         booking_id: str, 
-        payment_method: str,
-        payment_details: str
+        payment_method: str = "credit_card",
+        card_details: Optional[str] = None
     ) -> CreateBookingResponse:
         """
         Process payment for a booking
-        This demonstrates the payment workflow orchestration
+        This demonstrates the payment workflow orchestration with full service integration
         """
         try:
             # Get booking
@@ -258,13 +258,29 @@ class Mutation:
                     lock_id=None
                 )
 
+            # Get user details for payment processing and notifications
+            user_client = UserServiceClient()
+            user = await user_client.get_user(booking_doc["user_id"])
+            if not user:
+                return CreateBookingResponse(
+                    success=False,
+                    booking=None,
+                    message="User not found",
+                    lock_id=None
+                )
+
+            # Get showtime details for notifications
+            cinema_client = CinemaServiceClient()
+            showtime_details = await cinema_client.get_showtime_details(booking_doc["showtime_id"])
+
             # Process payment via REST API call to payment-service
             payment_client = PaymentServiceClient()
             payment_result = await payment_client.process_payment(
+                user_id=booking_doc["user_id"],
                 booking_id=booking_id,
                 amount=booking_doc["total_amount"],
                 payment_method=payment_method,
-                payment_details=payment_details
+                card_details=None  # Using default test card details
             )
 
             if not payment_result["success"]:
@@ -276,7 +292,6 @@ class Mutation:
                 )
 
             # Confirm seat booking via gRPC
-            cinema_client = CinemaServiceClient()
             confirm_result = await cinema_client.confirm_seat_booking(
                 lock_id=booking_doc["lock_id"],
                 booking_id=booking_id,
@@ -287,7 +302,7 @@ class Mutation:
                 # Payment succeeded but seat confirmation failed
                 # This should trigger a refund process
                 await self._handle_payment_seat_confirmation_failure(
-                    booking_id, payment_result["transaction_id"]
+                    booking_id, payment_result["transaction_id"], user.email
                 )
                 return CreateBookingResponse(
                     success=False,
@@ -310,15 +325,18 @@ class Mutation:
                 return_document=True
             )
 
-            # Publish booking confirmed event
+            # Publish booking confirmed event with all details for notification service
             event_publisher = EventPublisher()
             await event_publisher.publish_booking_event(
                 event_type="booking.confirmed",
                 booking_id=booking_id,
+                user_email=user.email,
                 user_id=booking_doc["user_id"],
-                showtime_id=booking_doc["showtime_id"],
+                movie_title=showtime_details.movie_title if showtime_details else "Unknown Movie",
+                showtime=showtime_details.start_time.strftime("%Y-%m-%d %I:%M %p") if showtime_details else "Unknown Time",
                 seats=booking_doc["seats"],
                 total_amount=booking_doc["total_amount"],
+                cinema_name=showtime_details.cinema_name if showtime_details else "Unknown Cinema",
                 transaction_id=payment_result["transaction_id"]
             )
 
@@ -334,7 +352,7 @@ class Mutation:
                     created_at=updated_booking["created_at"],
                     updated_at=updated_booking["updated_at"]
                 ),
-                message="Booking confirmed successfully!",
+                message="Booking confirmed successfully! Check your email for confirmation details.",
                 lock_id=None
             )
 
@@ -347,10 +365,9 @@ class Mutation:
                 lock_id=None
             )
 
-    async def _handle_payment_seat_confirmation_failure(self, booking_id: str, transaction_id: str):
+    async def _handle_payment_seat_confirmation_failure(self, booking_id: str, transaction_id: str, user_email: str):
         """Handle the edge case where payment succeeds but seat confirmation fails"""
         # This should trigger a refund process and proper error handling
-        # Implementation would depend on your business logic
         db = await get_database()
         await db.bookings.update_one(
             {"_id": booking_id},
@@ -363,13 +380,19 @@ class Mutation:
             }
         )
 
-        # Publish refund event
+        # Publish refund event for notification service
         event_publisher = EventPublisher()
         await event_publisher.publish_booking_event(
-            event_type="booking.refund_required",
+            event_type="booking.refunded",
             booking_id=booking_id,
+            user_email=user_email,
+            user_id="",  # Will be filled from booking record if needed
+            movie_title="",  # Will be filled from showtime details if needed
+            showtime="",
+            seats=[],
+            total_amount=0.0,
             transaction_id=transaction_id,
-            reason="Seat confirmation failed"
+            refund_reason="Seat confirmation failed after payment"
         )
 
 

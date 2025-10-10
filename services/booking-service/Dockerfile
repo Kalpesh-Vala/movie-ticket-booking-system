@@ -16,14 +16,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Generate gRPC code from proto files
+RUN mkdir -p ./app/grpc_generated
 RUN python -m grpc_tools.protoc \
-    --proto_path=../../proto \
+    --proto_path=. \
     --python_out=./app/grpc_generated \
     --grpc_python_out=./app/grpc_generated \
-    ../../proto/cinema.proto
+    cinema.proto
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8004
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8004}"]

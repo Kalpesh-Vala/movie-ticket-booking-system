@@ -10,18 +10,19 @@ class Config:
     """Configuration settings for the booking service"""
     
     # Database settings
-    MONGODB_URL: str = os.getenv(
-        "MONGODB_URL", 
-        "mongodb://admin:password@localhost:27017/movietickets?authSource=admin"
+    MONGODB_URI: str = os.getenv(
+        "MONGODB_URI", 
+        "mongodb://admin:admin123@localhost:27017/movie_booking?authSource=admin"
     )
     
-    # Service URLs
-    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
-    PAYMENT_SERVICE_URL: str = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8002")
-    CINEMA_SERVICE_URL: str = os.getenv("CINEMA_SERVICE_URL", "localhost:50051")
+    # Service URLs - Updated to match the actual service URLs from docker-compose
+    USER_SERVICE_REST_URL: str = os.getenv("USER_SERVICE_REST_URL", "http://localhost:8001")
+    PAYMENT_SERVICE_REST_URL: str = os.getenv("PAYMENT_SERVICE_REST_URL", "http://localhost:8003")
+    CINEMA_SERVICE_GRPC_URL: str = os.getenv("CINEMA_SERVICE_GRPC_URL", "localhost:9090")
     
-    # RabbitMQ settings
-    RABBITMQ_URL: str = os.getenv("RABBITMQ_URL", "amqp://admin:password@localhost:5672/")
+    # RabbitMQ settings - Updated to match the docker-compose configuration
+    RABBITMQ_URL: str = os.getenv("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672/")
+    RABBITMQ_EXCHANGE: str = os.getenv("RABBITMQ_EXCHANGE", "movie_app_events")
     
     # Booking settings
     SEAT_LOCK_DURATION: int = int(os.getenv("SEAT_LOCK_DURATION", "300"))  # 5 minutes
@@ -29,6 +30,9 @@ class Config:
     
     # API settings
     API_TIMEOUT: int = int(os.getenv("API_TIMEOUT", "30"))
+    
+    # Application settings
+    PORT: int = int(os.getenv("PORT", "8000"))
     
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
@@ -40,7 +44,7 @@ class Config:
     @classmethod
     def get_database_url(cls) -> str:
         """Get database URL"""
-        return cls.MONGODB_URL
+        return cls.MONGODB_URI
     
     @classmethod
     def is_development(cls) -> bool:

@@ -17,21 +17,22 @@ class UserServiceClient:
     """
     
     def __init__(self):
-        self.base_url = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
+        self.base_url = os.getenv("USER_SERVICE_REST_URL", "http://localhost:8001")
         self.timeout = httpx.Timeout(30.0)
     
     async def get_user(self, user_id: str) -> Optional[User]:
         """Get user details from user service"""
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/api/users/{user_id}")
+                response = await client.get(f"{self.base_url}/api/v1/users/{user_id}")
                 
                 if response.status_code == 200:
                     user_data = response.json()
                     return User(
                         id=user_data["id"],
                         email=user_data["email"],
-                        full_name=user_data["full_name"],
+                        first_name=user_data.get("first_name", ""),
+                        last_name=user_data.get("last_name", ""),
                         phone=user_data.get("phone")
                     )
                 elif response.status_code == 404:
@@ -63,15 +64,16 @@ class PaymentServiceClient:
     """
     
     def __init__(self):
-        self.base_url = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8002")
+        self.base_url = os.getenv("PAYMENT_SERVICE_REST_URL", "http://localhost:8003")
         self.timeout = httpx.Timeout(30.0)
     
     async def process_payment(
         self, 
+        user_id: str,
         booking_id: str, 
         amount: float, 
-        payment_method: str, 
-        payment_details: str
+        payment_method: str = "credit_card",
+        card_details: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Process payment via payment service
@@ -79,15 +81,22 @@ class PaymentServiceClient:
         """
         try:
             payment_data = {
+                "user_id": user_id,
                 "booking_id": booking_id,
                 "amount": amount,
                 "payment_method": payment_method,
-                "payment_details": payment_details
+                "card_details": card_details or {
+                    "card_number": "4111111111111111",
+                    "expiry_month": "12",
+                    "expiry_year": "2025",
+                    "cvv": "123",
+                    "cardholder_name": "Test User"
+                }
             }
             
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
-                    f"{self.base_url}/api/payments/process",
+                    f"{self.base_url}/payment/process",
                     json=payment_data
                 )
                 
@@ -123,23 +132,27 @@ class PaymentServiceClient:
     
     async def initiate_refund(
         self, 
+        booking_id: str,
         transaction_id: str, 
         amount: float, 
-        reason: str
+        reason: str,
+        user_id: str
     ) -> Dict[str, Any]:
         """
         Initiate refund via payment service
         """
         try:
             refund_data = {
-                "transaction_id": transaction_id,
+                "booking_id": booking_id,
+                "original_transaction_id": transaction_id,
                 "amount": amount,
-                "reason": reason
+                "reason": reason,
+                "user_id": user_id
             }
             
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
-                    f"{self.base_url}/api/payments/refund",
+                    f"{self.base_url}/payment/refund",
                     json=refund_data
                 )
                 
@@ -167,7 +180,7 @@ class PaymentServiceClient:
         """Get payment status from payment service"""
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/api/payments/{transaction_id}/status")
+                response = await client.get(f"{self.base_url}/payment/status/{transaction_id}")
                 
                 if response.status_code == 200:
                     return response.json()

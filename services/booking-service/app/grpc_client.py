@@ -20,7 +20,7 @@ class CinemaServiceClient:
     def __init__(self):
         self.channel = None
         self.stub = None
-        self.cinema_service_url = os.getenv("CINEMA_SERVICE_URL", "localhost:50051")
+        self.cinema_service_url = os.getenv("CINEMA_SERVICE_GRPC_URL", "localhost:9090")
     
     async def _get_stub(self):
         """Get gRPC stub with connection management"""
