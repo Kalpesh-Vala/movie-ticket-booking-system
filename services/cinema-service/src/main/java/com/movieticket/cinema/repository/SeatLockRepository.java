@@ -17,9 +17,11 @@ public interface SeatLockRepository extends JpaRepository<SeatLock, String> {
     
     List<SeatLock> findByBookingId(String bookingId);
     
+    List<SeatLock> findBySeatId(String seatId);
+    
     @Query("SELECT sl FROM SeatLock sl WHERE sl.isActive = true AND sl.expiresAt < :currentTime")
     List<SeatLock> findExpiredLocks(@Param("currentTime") LocalDateTime currentTime);
     
-    @Query("SELECT sl FROM SeatLock sl WHERE sl.showtimeId = :showtimeId AND sl.isActive = true")
-    List<SeatLock> findActiveLocksForShowtime(@Param("showtimeId") String showtimeId);
+    @Query("SELECT sl FROM SeatLock sl WHERE sl.seatId IN :seatIds AND sl.isActive = true")
+    List<SeatLock> findActiveLocksForSeats(@Param("seatIds") List<String> seatIds);
 }

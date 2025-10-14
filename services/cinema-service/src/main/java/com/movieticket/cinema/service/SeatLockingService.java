@@ -2,8 +2,6 @@ package com.movieticket.cinema.service;
 
 import com.movieticket.cinema.entity.Seat;
 import com.movieticket.cinema.entity.SeatLock;
-import com.movieticket.cinema.entity.SeatStatus;
-import com.movieticket.cinema.entity.Showtime;
 import com.movieticket.cinema.repository.SeatRepository;
 import com.movieticket.cinema.repository.SeatLockRepository;
 import com.movieticket.cinema.repository.ShowtimeRepository;
@@ -14,10 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.ArrayList;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Critical seat locking service that uses PostgreSQL pessimistic locking
@@ -47,7 +47,7 @@ public class SeatLockingService {
                                    String bookingId, int lockDurationSeconds) {
         
         // Validate showtime exists
-        Showtime showtime = showtimeRepository.findById(showtimeId)
+        showtimeRepository.findById(showtimeId)
             .orElseThrow(() -> new IllegalArgumentException("Showtime not found"));
 
         // Get current time for lock expiration
@@ -71,7 +71,7 @@ public class SeatLockingService {
 
             // Check if any seats are already booked or locked
             List<String> unavailableSeats = seatsToLock.stream()
-                .filter(seat -> seat.getStatus() == SeatStatus.BOOKED || isCurrentlyLocked(seat))
+                .filter(seat -> seat.getIsBooked() || isCurrentlyLocked(seat))
                 .map(Seat::getSeatNumber)
                 .collect(Collectors.toList());
 
@@ -79,16 +79,23 @@ public class SeatLockingService {
                 return new SeatLockResult(false, null, null, unavailableSeats, "Seats unavailable: " + unavailableSeats);
             }
 
-            // Create seat lock record
+            // Create seat lock records - one for each seat
             String lockId = UUID.randomUUID().toString();
-            SeatLock seatLock = new SeatLock(lockId, bookingId, showtimeId, seatNumbers, lockExpiration);
-            seatLockRepository.save(seatLock);
+            List<SeatLock> seatLocks = new ArrayList<>();
+            
+            for (Seat seat : seatsToLock) {
+                SeatLock seatLock = new SeatLock(lockId, seat.getId(), bookingId, showtimeId, lockExpiration);
+                seatLocks.add(seatLock);
+            }
+            
+            seatLockRepository.saveAll(seatLocks);
 
             // Update seat status to locked
             seatsToLock.forEach(seat -> {
-                seat.setStatus(SeatStatus.LOCKED);
+                seat.setIsLocked(true);
+                seat.setIsBooked(false);
                 seat.setLockedBy(bookingId);
-                seat.setLockedUntil(lockExpiration);
+                seat.setLockExpiration(lockExpiration);
             });
             
             seatRepository.saveAll(seatsToLock);
@@ -108,32 +115,39 @@ public class SeatLockingService {
     @Transactional
     public boolean releaseSeatLock(String lockId, String bookingId) {
         try {
-            // Find the lock
-            SeatLock lock = seatLockRepository.findByLockId(lockId)
-                .orElse(null);
+            // Find all locks with this lockId and bookingId
+            List<SeatLock> locks = seatLockRepository.findByBookingId(bookingId).stream()
+                .filter(lock -> lockId.equals(lock.getLockId()) && lock.getIsActive())
+                .collect(Collectors.toList());
             
-            if (lock == null || !lock.getBookingId().equals(bookingId) || !lock.getIsActive()) {
+            if (locks.isEmpty()) {
                 return false;
             }
 
-            // Get seats to unlock
-            List<Seat> seatsToUnlock = seatRepository.findByShowtimeIdAndSeatNumberIn(
-                lock.getShowtimeId(), lock.getSeatNumbers());
+            // Get seat IDs to unlock
+            List<String> seatIds = locks.stream()
+                .map(SeatLock::getSeatId)
+                .collect(Collectors.toList());
+            
+            List<Seat> seatsToUnlock = seatRepository.findAllById(seatIds);
 
             // Update seat status
             seatsToUnlock.forEach(seat -> {
-                if (seat.getStatus() == SeatStatus.LOCKED && bookingId.equals(seat.getLockedBy())) {
-                    seat.setStatus(SeatStatus.AVAILABLE);
+                if (seat.getIsLocked() && bookingId.equals(seat.getLockedBy())) {
+                    seat.setIsLocked(false);
                     seat.setLockedBy(null);
-                    seat.setLockedUntil(null);
+                    seat.setLockExpiration(null);
                 }
             });
             
             seatRepository.saveAll(seatsToUnlock);
 
-            // Deactivate lock
-            lock.setIsActive(false);
-            seatLockRepository.save(lock);
+            // Deactivate locks
+            locks.forEach(lock -> {
+                lock.setIsActive(false);
+                lock.setReleasedAt(LocalDateTime.now());
+            });
+            seatLockRepository.saveAll(locks);
             
             return true;
 
@@ -149,34 +163,42 @@ public class SeatLockingService {
     @Transactional
     public boolean confirmSeatBooking(String lockId, String bookingId, String userId) {
         try {
-            // Find the lock
-            SeatLock lock = seatLockRepository.findByLockId(lockId)
-                .orElse(null);
+            // Find all locks with this lockId and bookingId
+            List<SeatLock> locks = seatLockRepository.findByBookingId(bookingId).stream()
+                .filter(lock -> lockId.equals(lock.getLockId()) && lock.getIsActive())
+                .collect(Collectors.toList());
             
-            if (lock == null || !lock.getBookingId().equals(bookingId) || !lock.getIsActive()) {
+            if (locks.isEmpty()) {
                 return false;
             }
 
-            // Get seats to book
-            List<Seat> seatsToBook = seatRepository.findByShowtimeIdAndSeatNumberIn(
-                lock.getShowtimeId(), lock.getSeatNumbers());
+            // Get seat IDs to book
+            List<String> seatIds = locks.stream()
+                .map(SeatLock::getSeatId)
+                .collect(Collectors.toList());
+            
+            List<Seat> seatsToBook = seatRepository.findAllById(seatIds);
 
             // Convert locks to bookings
             seatsToBook.forEach(seat -> {
-                if (seat.getStatus() == SeatStatus.LOCKED && bookingId.equals(seat.getLockedBy())) {
-                    seat.setStatus(SeatStatus.BOOKED);
+                if (seat.getIsLocked() && bookingId.equals(seat.getLockedBy())) {
+                    seat.setIsBooked(true);
+                    seat.setIsLocked(false);
                     seat.setBookedBy(userId);
-                    seat.setBookingId(bookingId);
+                    seat.setBookedAt(LocalDateTime.now());
                     seat.setLockedBy(null);
-                    seat.setLockedUntil(null);
+                    seat.setLockExpiration(null);
                 }
             });
             
             seatRepository.saveAll(seatsToBook);
 
-            // Deactivate lock
-            lock.setIsActive(false);
-            seatLockRepository.save(lock);
+            // Deactivate locks
+            locks.forEach(lock -> {
+                lock.setIsActive(false);
+                lock.setReleasedAt(LocalDateTime.now());
+            });
+            seatLockRepository.saveAll(locks);
             
             return true;
 
@@ -197,19 +219,19 @@ public class SeatLockingService {
         }
         
         return seats.stream().allMatch(seat -> 
-            seat.getStatus() == SeatStatus.AVAILABLE && !isCurrentlyLocked(seat));
+            !seat.getIsBooked() && !seat.getIsLocked());
     }
 
     /**
      * Check if seat is currently locked by active lock
      */
     private boolean isCurrentlyLocked(Seat seat) {
-        if (seat.getStatus() != SeatStatus.LOCKED) {
+        if (!seat.getIsLocked()) {
             return false;
         }
         
         // Check if lock has expired
-        if (seat.getLockedUntil() != null && seat.getLockedUntil().isBefore(LocalDateTime.now())) {
+        if (seat.getLockExpiration() != null && seat.getLockExpiration().isBefore(LocalDateTime.now())) {
             return false;
         }
         
@@ -227,24 +249,20 @@ public class SeatLockingService {
         List<SeatLock> expiredLocks = seatLockRepository.findExpiredLocks(now);
         
         for (SeatLock lock : expiredLocks) {
-            // Get seats to unlock
-            List<Seat> seatsToUnlock = seatRepository.findByShowtimeIdAndSeatNumberIn(
-                lock.getShowtimeId(), lock.getSeatNumbers());
+            // Get seat to unlock
+            Seat seatToUnlock = seatRepository.findById(lock.getSeatId()).orElse(null);
 
-            // Update seat status
-            seatsToUnlock.forEach(seat -> {
-                if (seat.getStatus() == SeatStatus.LOCKED && 
-                    lock.getBookingId().equals(seat.getLockedBy())) {
-                    seat.setStatus(SeatStatus.AVAILABLE);
-                    seat.setLockedBy(null);
-                    seat.setLockedUntil(null);
-                }
-            });
-            
-            seatRepository.saveAll(seatsToUnlock);
+            if (seatToUnlock != null && seatToUnlock.getIsLocked() && 
+                lock.getBookingId().equals(seatToUnlock.getLockedBy())) {
+                seatToUnlock.setIsLocked(false);
+                seatToUnlock.setLockedBy(null);
+                seatToUnlock.setLockExpiration(null);
+                seatRepository.save(seatToUnlock);
+            }
 
             // Deactivate lock
             lock.setIsActive(false);
+            lock.setReleasedAt(now);
         }
         
         seatLockRepository.saveAll(expiredLocks);
@@ -260,10 +278,10 @@ public class SeatLockingService {
             List<Seat> seats = seatRepository.findByShowtimeIdAndSeatNumberIn(showtimeId, seatNumbers);
             
             for (Seat seat : seats) {
-                if (seat.getStatus() == SeatStatus.LOCKED) {
-                    seat.setStatus(SeatStatus.AVAILABLE);
+                if (seat.getIsLocked()) {
+                    seat.setIsLocked(false);
                     seat.setLockedBy(null);
-                    seat.setLockedUntil(null);
+                    seat.setLockExpiration(null);
                 }
             }
             

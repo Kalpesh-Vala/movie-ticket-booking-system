@@ -19,11 +19,16 @@ The Cinema Service is a Spring Boot microservice that manages cinemas, movies, s
   - [Screen Management](#screen-management)
   - [Showtime Management](#showtime-management)
   - [Seat Management](#seat-management)
+  - [Search Operations](#search-operations)
+  - [Error Handling](#error-handling)
 - [gRPC API](#grpc-api)
   - [Service Definition](#service-definition)
   - [Method Descriptions](#method-descriptions)
-  - [Usage Examples](#usage-examples)
+  - [Complete Workflow Examples](#complete-workflow-examples)
+  - [Testing Scripts](#testing-scripts)
 - [Testing](#testing)
+  - [REST API Testing](#rest-api-testing)
+  - [gRPC API Testing](#grpc-api-testing)
 - [Development](#development)
 - [Production Considerations](#production-considerations)
 
@@ -48,11 +53,15 @@ GET /actuator/health
 GET /api/v1/cinemas
 ```
 
+**Query Parameters:**
+- `size` (optional) - Limit the number of results (default: unlimited)
+- `page` (optional) - Page number for pagination (default: 0)
+
 **Response:**
 ```json
 [
   {
-    "id": 1,
+    "id": "cinema-001",
     "name": "Multiplex Downtown",
     "location": "123 Main Street, Downtown",
     "createdAt": "2024-01-01T10:00:00",
@@ -72,12 +81,36 @@ GET /api/v1/cinemas/{id}
 **Response:**
 ```json
 {
-  "id": 1,
+  "id": "cinema-001",
   "name": "Multiplex Downtown",
   "location": "123 Main Street, Downtown",
   "createdAt": "2024-01-01T10:00:00",
   "updatedAt": "2024-01-01T10:00:00"
 }
+```
+
+### Get Screens for Cinema
+```http
+GET /api/v1/cinemas/{id}/screens
+```
+
+**Parameters:**
+- `id` (path) - Cinema ID
+
+**Response:**
+```json
+[
+  {
+    "id": "screen-001",
+    "name": "Screen 1",
+    "capacity": 100,
+    "screenType": "REGULAR",
+    "cinemaId": "cinema-001",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+]
+```
 ```
 
 ### Create Cinema
@@ -124,7 +157,7 @@ GET /api/v1/movies
 ```json
 [
   {
-    "id": 1,
+    "id": "movie-001",
     "title": "The Great Adventure",
     "description": "An epic adventure movie",
     "duration": 150,
@@ -143,9 +176,47 @@ GET /api/v1/movies
 GET /api/v1/movies/{id}
 ```
 
-### Search Movies
+**Parameters:**
+- `id` (path) - Movie ID
+
+**Response:**
+```json
+{
+  "id": "movie-001",
+  "title": "The Great Adventure",
+  "description": "An epic adventure movie",
+  "duration": 150,
+  "genre": "Adventure",
+  "rating": "PG-13",
+  "language": "English",
+  "releaseDate": "2024-01-15",
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
+}
+```
+
+### Search Movies by Title
 ```http
 GET /api/v1/movies/search?title={searchTerm}
+```
+
+**Query Parameters:**
+- `title` (required) - Movie title to search for (partial match supported)
+
+**Response:**
+```json
+[
+  {
+    "id": "movie-001",
+    "title": "Avengers: Endgame",
+    "description": "The culmination of 22 interconnected films",
+    "duration": 181,
+    "genre": "Action",
+    "rating": "PG-13",
+    "language": "English",
+    "releaseDate": "2024-04-26"
+  }
+]
 ```
 
 **Parameters:**
@@ -183,6 +254,27 @@ DELETE /api/v1/movies/{id}
 
 ## Screen Management
 
+### Get Screen by ID
+```http
+GET /api/v1/screens/{id}
+```
+
+**Parameters:**
+- `id` (path) - Screen ID
+
+**Response:**
+```json
+{
+  "id": "screen-001",
+  "name": "Screen 1",
+  "capacity": 150,
+  "screenType": "REGULAR",
+  "cinemaId": "cinema-001",
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
+}
+```
+
 ### Get Screens by Cinema
 ```http
 GET /api/v1/cinemas/{cinemaId}/screens
@@ -195,10 +287,35 @@ GET /api/v1/cinemas/{cinemaId}/screens
 ```json
 [
   {
-    "id": 1,
+    "id": "screen-001",
     "name": "Screen 1",
     "capacity": 150,
-    "cinemaId": 1,
+    "screenType": "REGULAR",
+    "cinemaId": "cinema-001",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+]
+```
+
+### Get Showtimes for Screen
+```http
+GET /api/v1/screens/{id}/showtimes
+```
+
+**Parameters:**
+- `id` (path) - Screen ID
+
+**Response:**
+```json
+[
+  {
+    "id": "showtime-001",
+    "movieId": "movie-001",
+    "screenId": "screen-001",
+    "startTime": "2024-01-20T19:30:00",
+    "endTime": "2024-01-20T22:00:00",
+    "price": 12.50,
     "createdAt": "2024-01-01T10:00:00",
     "updatedAt": "2024-01-01T10:00:00"
   }
@@ -216,11 +333,11 @@ GET /api/v1/showtimes
 ```json
 [
   {
-    "id": 1,
-    "movieId": 1,
-    "screenId": 1,
-    "showDate": "2024-01-20",
-    "showTime": "18:00:00",
+    "id": "showtime-001",
+    "movieId": "movie-001",
+    "screenId": "screen-001",
+    "startTime": "2024-01-20T19:30:00",
+    "endTime": "2024-01-20T22:00:00",
     "price": 12.50,
     "createdAt": "2024-01-01T10:00:00",
     "updatedAt": "2024-01-01T10:00:00"
@@ -228,39 +345,78 @@ GET /api/v1/showtimes
 ]
 ```
 
-### Get Showtimes by Movie
+### Get Showtime by ID
 ```http
-GET /api/v1/movies/{movieId}/showtimes
-```
-
-### Get Showtimes by Screen
-```http
-GET /api/v1/screens/{screenId}/showtimes
-```
-
-### Get Showtimes by Date
-```http
-GET /api/v1/showtimes/date/{date}
+GET /api/v1/showtimes/{id}
 ```
 
 **Parameters:**
-- `date` (path) - Date in YYYY-MM-DD format
+- `id` (path) - Showtime ID
 
-### Create Showtime
-```http
-POST /api/v1/showtimes
-Content-Type: application/json
-```
-
-**Request Body:**
+**Response:**
 ```json
 {
-  "movieId": 1,
-  "screenId": 1,
-  "showDate": "2024-01-25",
-  "showTime": "20:00:00",
-  "price": 15.00
+  "id": "showtime-001",
+  "movieId": "movie-001",
+  "screenId": "screen-001",
+  "startTime": "2024-01-20T19:30:00",
+  "endTime": "2024-01-20T22:00:00",
+  "price": 12.50,
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
 }
+```
+
+### Get Seats for Showtime
+```http
+GET /api/v1/showtimes/{showtimeId}/seats
+```
+
+**Parameters:**
+- `showtimeId` (path) - Showtime ID
+- `status` (query, optional) - Filter by seat status (AVAILABLE, LOCKED, BOOKED)
+
+**Response:**
+```json
+[
+  {
+    "id": "seat-001",
+    "seatNumber": "A1",
+    "row": "A",
+    "column": 1,
+    "seatType": "REGULAR",
+    "status": "AVAILABLE",
+    "screenId": "screen-001",
+    "isBooked": false,
+    "isLocked": false
+  }
+]
+```
+
+### Get Available Seats for Showtime
+```http
+GET /api/v1/showtimes/{showtimeId}/seats/available
+```
+
+**Parameters:**
+- `showtimeId` (path) - Showtime ID
+
+**Response:**
+```json
+[
+  {
+    "id": "seat-001",
+    "seatNumber": "A1",
+    "row": "A",
+    "column": 1,
+    "seatType": "REGULAR",
+    "status": "AVAILABLE",
+    "screenId": "screen-001",
+    "isBooked": false,
+    "isLocked": false
+  }
+]
+```
 ```
 
 ### Update Showtime
@@ -320,16 +476,17 @@ GET /api/v1/showtimes/{showtimeId}/seats/available
 
 ### Lock Seats
 ```http
-POST /api/v1/showtimes/{showtimeId}/seats/lock
+POST /api/v1/showtimes/{showtimeId}/seats/lock?userId={userId}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Parameters:**
+- `showtimeId` (path) - Showtime ID
+- `userId` (query) - User ID requesting the lock
+
+**Request Body (Array of seat numbers):**
 ```json
-{
-  "seatIds": [1, 2, 3],
-  "userId": "user123"
-}
+["A1", "A2"]
 ```
 
 **Response:**
@@ -338,14 +495,15 @@ Content-Type: application/json
   "success": true,
   "lockedSeats": [
     {
-      "id": 1,
-      "seatId": 1,
-      "showtimeId": 1,
-      "userId": "user123",
+      "id": "lock-001",
+      "seatId": "seat-001", 
+      "showtimeId": "showtime-001",
+      "userId": "test-user",
       "lockedAt": "2024-01-20T15:30:00",
       "expiresAt": "2024-01-20T15:45:00"
     }
-  ]
+  ],
+  "message": "Seats locked successfully"
 }
 ```
 
@@ -355,12 +513,13 @@ POST /api/v1/showtimes/{showtimeId}/seats/release
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Parameters:**
+- `showtimeId` (path) - Showtime ID
+
+**Request Body (Array of seat numbers):**
 ```json
-{
-  "seatIds": [1, 2, 3],
-  "userId": "user123"
-}
+["A1", "A2"]
+```
 ```
 
 **Response:**
@@ -377,28 +536,167 @@ GET /api/v1/showtimes/{showtimeId}/seats/locked?userId={userId}
 ```
 
 **Parameters:**
+- `showtimeId` (path) - Showtime ID
 - `userId` (query) - User ID to filter locked seats
 
-## gRPC Service
+**Response:**
+```json
+[
+  {
+    "id": "lock-001",
+    "seatId": "seat-001",
+    "showtimeId": "showtime-001", 
+    "userId": "test-user",
+    "lockedAt": "2024-01-20T15:30:00",
+    "expiresAt": "2024-01-20T15:45:00"
+  }
+]
+```
 
-The Cinema Service also provides a gRPC interface with the following methods:
+## Search Operations
 
-### Service Definition
-```protobuf
-service CinemaService {
-  rpc GetCinemas(Empty) returns (CinemaList);
-  rpc GetCinema(CinemaRequest) returns (Cinema);
-  rpc GetMovies(Empty) returns (MovieList);
-  rpc GetMovie(MovieRequest) returns (Movie);
-  rpc GetScreens(CinemaRequest) returns (ScreenList);
-  rpc GetShowtimes(Empty) returns (ShowtimeList);
-  rpc GetSeats(ShowtimeRequest) returns (SeatList);
-  rpc LockSeats(LockSeatsRequest) returns (LockSeatsResponse);
-  rpc ReleaseSeatLocks(ReleaseSeatLocksRequest) returns (ReleaseSeatLocksResponse);
+### Search Movies by Title
+```http
+GET /api/v1/movies/search?title={searchTerm}
+```
+
+**Query Parameters:**
+- `title` (required) - Movie title to search for (partial match supported)
+
+**Example:**
+```http
+GET /api/v1/movies/search?title=Avengers
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "movie-001",
+    "title": "Avengers: Endgame",
+    "description": "The culmination of 22 interconnected films",
+    "duration": 181,
+    "genre": "Action",
+    "rating": "PG-13",
+    "language": "English",
+    "releaseDate": "2024-04-26"
+  }
+]
+```
+
+### Search Showtimes by Movie and Date
+```http
+GET /api/v1/showtimes/search?movieId={movieId}&date={date}
+```
+
+**Query Parameters:**
+- `movieId` (required) - Movie ID to search showtimes for
+- `date` (required) - Date in YYYY-MM-DD format
+
+**Example:**
+```http
+GET /api/v1/showtimes/search?movieId=movie-001&date=2025-01-15
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "showtime-001",
+    "movieId": "movie-001",
+    "screenId": "screen-001",
+    "startTime": "2025-01-15T19:30:00",
+    "endTime": "2025-01-15T22:00:00",
+    "price": 12.50,
+    "availableSeats": 85
+  }
+]
+```
+
+## Error Handling
+
+The API provides consistent error responses for various scenarios:
+
+### Non-existent Resources
+When requesting a resource that doesn't exist:
+
+**Example Request:**
+```http
+GET /api/v1/cinemas/non-existent
+```
+
+**Response (404 Not Found):**
+```json
+{
+  "error": "Cinema not found",
+  "message": "Cinema with ID 'non-existent' does not exist",
+  "timestamp": "2024-01-20T15:30:00Z",
+  "path": "/api/v1/cinemas/non-existent"
 }
 ```
 
-### gRPC Server
+### Invalid Seat Operations
+When attempting to lock invalid or non-existent seats:
+
+**Example Request:**
+```http
+POST /api/v1/showtimes/showtime-001/seats/lock?userId=test-user
+Content-Type: application/json
+
+["INVALID_SEAT"]
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "error": "Invalid seat operation",
+  "message": "Some seats could not be locked",
+  "invalidSeats": ["INVALID_SEAT"],
+  "timestamp": "2024-01-20T15:30:00Z"
+}
+```
+
+### Validation Errors
+When required parameters are missing or invalid:
+
+**Response (400 Bad Request):**
+```json
+{
+  "error": "Validation failed",
+  "message": "Required parameter 'userId' is missing",
+  "timestamp": "2024-01-20T15:30:00Z"
+}
+```
+
+## gRPC API
+
+The Cinema Service provides a high-performance gRPC API for critical operations like seat locking and booking confirmation. This API is designed for inter-service communication within the microservices architecture.
+
+### Service Definition
+
+**Service Name**: `cinema.CinemaService`  
+**Port**: `9090`  
+**Protocol**: gRPC with Protocol Buffers  
+**Reflection**: Enabled for easy testing
+
+**Available Methods:**
+- `CheckSeatAvailability` - Check if specific seats are available
+- `LockSeats` - Lock seats with pessimistic locking  
+- `ReleaseSeatLock` - Release previously locked seats
+- `ConfirmSeatBooking` - Confirm and finalize booking
+- `GetShowtimeDetails` - Get comprehensive showtime information
+
+**List Services:**
+```bash
+grpcurl -plaintext localhost:9090 list
+# Returns: cinema.CinemaService, grpc.reflection.v1alpha.ServerReflection
+```
+
+**List Methods:**
+```bash
+grpcurl -plaintext localhost:9090 list cinema.CinemaService
+# Returns all available methods
+```
 - **Host**: `localhost`
 - **Port**: `9090`
 
@@ -686,73 +984,116 @@ message ShowtimeDetailsResponse {
 }
 ```
 
-### Usage Examples
+### Complete Workflow Examples
 
-#### Using grpcurl
+#### Complete Booking Workflow using gRPC
 
-1. **List available services**:
+The typical end-to-end booking process:
+
 ```bash
-grpcurl -plaintext localhost:9090 list
-```
-
-2. **Check seat availability**:
-```bash
+# Step 1: Check seat availability
 grpcurl -plaintext -d '{
-  "showtime_id": "showtime-1",
-  "seat_numbers": ["A01", "A02"]
+  "showtime_id": "showtime-001",
+  "seat_numbers": ["A7", "A8"]
 }' localhost:9090 cinema.CinemaService/CheckSeatAvailability
-```
 
-3. **Lock seats**:
-```bash
+# Step 2: Lock seats (if available)
 grpcurl -plaintext -d '{
-  "showtime_id": "showtime-1",
-  "seat_numbers": ["A01", "A02"],
+  "showtime_id": "showtime-001",
+  "seat_numbers": ["A7", "A8"],
   "booking_id": "booking-123",
   "lock_duration_seconds": 300
 }' localhost:9090 cinema.CinemaService/LockSeats
-```
 
-4. **Release lock**:
-```bash
+# Step 3: Get showtime details (for confirmation)
 grpcurl -plaintext -d '{
-  "lock_id": "01abc430-1acb-4145-b7f0-f502f44405d9",
+  "showtime_id": "showtime-001"
+}' localhost:9090 cinema.CinemaService/GetShowtimeDetails
+
+# Step 4a: Confirm booking (after successful payment)
+grpcurl -plaintext -d '{
+  "lock_id": "LOCK_ID_FROM_STEP_2",
+  "booking_id": "booking-123",
+  "user_id": "user-456"
+}' localhost:9090 cinema.CinemaService/ConfirmSeatBooking
+
+# Step 4b: OR Release lock (if payment fails)
+grpcurl -plaintext -d '{
+  "lock_id": "LOCK_ID_FROM_STEP_2",
   "booking_id": "booking-123"
 }' localhost:9090 cinema.CinemaService/ReleaseSeatLock
 ```
 
-#### Integration Workflow
+#### Concurrent Seat Locking Test
 
-The typical booking workflow using gRPC:
+Test the system's ability to handle concurrent booking attempts:
 
+```bash
+# Terminal 1: Try to book seats A1, A2
+grpcurl -plaintext -d '{
+  "showtime_id": "showtime-001",
+  "seat_numbers": ["A1", "A2"], 
+  "booking_id": "booking-user1",
+  "lock_duration_seconds": 300
+}' localhost:9090 cinema.CinemaService/LockSeats
+
+# Terminal 2: Simultaneously try to book same seats
+grpcurl -plaintext -d '{
+  "showtime_id": "showtime-001", 
+  "seat_numbers": ["A1", "A2"],
+  "booking_id": "booking-user2",
+  "lock_duration_seconds": 300
+}' localhost:9090 cinema.CinemaService/LockSeats
+
+# Expected: First request succeeds, second fails with appropriate error
 ```
-1. User selects seats → CheckSeatAvailability
-2. User clicks "Book" → LockSeats (5-minute lock)
-3. Payment processing → (seats remain locked)
-4. Payment success → ConfirmSeatBooking
-   OR
-   Payment failure → ReleaseSeatLock
+
+### Testing Scripts
+
+#### Comprehensive REST API Testing
+```bash
+# Run all REST endpoint tests
+./test_all_endpoints.sh
 ```
 
-### gRPC Client Implementation
+**Tests Covered:**
+- Health check
+- Cinema management (get all, get by ID, get screens)
+- Movie management (get all, get by ID, search by title)
+- Screen management (get by ID, get showtimes)
+- Showtime management (get all, get by ID, get seats, get available seats)
+- Seat locking (lock, release, check status)
+- Search operations (movies by title, showtimes by movie/date)
+- Error handling (invalid IDs, non-existent resources)
 
-For Python clients (like Booking Service):
-```python
-import grpc
-import cinema_pb2
-import cinema_pb2_grpc
+#### Comprehensive gRPC Testing
+```bash
+# Run complete gRPC test suite
+./test_grpc_endpoints_complete.sh
+```
 
-# Create gRPC channel
-channel = grpc.insecure_channel('localhost:9090')
-stub = cinema_pb2_grpc.CinemaServiceStub(channel)
+**Tests Covered:**
+- Server connectivity and reflection
+- CheckSeatAvailability (valid and invalid cases)
+- LockSeats with workflow validation
+- GetShowtimeDetails
+- ReleaseSeatLock
+- ConfirmSeatBooking
+- Complete booking workflow
+- Error handling and edge cases
+- Concurrent locking prevention
+- Performance tests with multiple seats
 
-# Check seat availability
-request = cinema_pb2.SeatAvailabilityRequest(
-    showtime_id='showtime-1',
-    seat_numbers=['A01', 'A02']
-)
-response = stub.CheckSeatAvailability(request)
-print(f"Available: {response.available}")
+#### Simple gRPC Testing (Alternative)
+```bash
+# Cross-platform bash script
+./test_grpc_endpoints_final.sh
+
+# Windows batch script  
+test_grpc_windows.bat
+
+# Python-based testing (no grpcurl required)
+python test_grpc_python.py
 ```
 
 ---
@@ -761,45 +1102,179 @@ print(f"Available: {response.available}")
 
 ### REST API Testing
 
+#### Automated Testing
 Run the comprehensive REST API test suite:
 ```bash
-./validate_service.sh
+# Navigate to cinema service directory
+cd services/cinema-service
+
+# Run all REST endpoint tests
+./test_all_endpoints.sh
 ```
 
-**Expected Result**: 15/15 tests passed
+**Test Coverage:**
+- ✅ Health check endpoint
+- ✅ Cinema management (get all with pagination, get by ID, get screens)
+- ✅ Movie management (get all, get by ID, search by title)
+- ✅ Screen management (get by ID, get showtimes for screen)
+- ✅ Showtime management (get all, get by ID, get seats, get available seats)
+- ✅ Seat locking (lock with user ID, release, check locked status)
+- ✅ Search operations (movies by title, showtimes by movie and date)
+- ✅ Error handling (404 for non-existent resources, 400 for invalid requests)
 
-### gRPC API Testing
+**Expected Result**: All endpoints return appropriate HTTP status codes with proper JSON responses
 
-Run the comprehensive gRPC test suite:
-```bash
-./test_grpc_endpoints_v2.sh
-```
-
-**Expected Result**: 11/11 tests passed
-
-### Manual Testing
-
-#### REST API:
+#### Manual REST Testing
 ```bash
 # Health check
 curl http://localhost:8002/actuator/health
 
-# Get all movies
-curl http://localhost:8002/api/v1/movies
+# Get all cinemas with pagination
+curl "http://localhost:8002/api/v1/cinemas?size=2"
 
-# Lock seats via REST
+# Get specific cinema
+curl http://localhost:8002/api/v1/cinemas/cinema-001
+
+# Search movies
+curl "http://localhost:8002/api/v1/movies/search?title=Avengers"
+
+# Lock seats (note the array format and query parameter)
 curl -X POST -H "Content-Type: application/json" \
-  -d '["A01", "A02"]' \
-  http://localhost:8002/api/v1/showtimes/showtime-1/seats/lock?userId=test-user
+  -d '["A1", "A2"]' \
+  "http://localhost:8002/api/v1/showtimes/showtime-001/seats/lock?userId=test-user"
+
+# Get available seats
+curl http://localhost:8002/api/v1/showtimes/showtime-001/seats/available
 ```
 
-#### gRPC API:
+### gRPC API Testing
+
+#### Automated gRPC Testing
+Run the comprehensive gRPC test suite:
 ```bash
-# List services
+# Complete test suite (recommended)
+./test_grpc_endpoints_complete.sh
+
+# Alternative test scripts
+./test_grpc_endpoints_final.sh    # Cross-platform bash
+test_grpc_windows.bat             # Windows batch script
+python test_grpc_python.py        # Python-based (no grpcurl required)
+```
+
+**Test Coverage:**
+- ✅ gRPC server connectivity and reflection
+- ✅ CheckSeatAvailability (valid seats, invalid showtime, empty seat list)
+- ✅ LockSeats (successful locking, concurrent locking prevention)
+- ✅ ReleaseSeatLock (valid and invalid lock releases)
+- ✅ ConfirmSeatBooking (complete workflow validation)
+- ✅ GetShowtimeDetails (comprehensive showtime information)
+- ✅ Error handling (invalid inputs, non-existent resources)
+- ✅ Performance tests (multiple seats, concurrent requests)
+- ✅ Complete booking workflow (check → lock → confirm/release)
+
+**Expected Result**: 95%+ success rate with proper gRPC responses and error handling
+
+#### Manual gRPC Testing
+```bash
+# Install grpcurl first (if not installed)
+go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+
+# List available services
 grpcurl -plaintext localhost:9090 list
 
+# List methods for CinemaService
+grpcurl -plaintext localhost:9090 list cinema.CinemaService
+
 # Test seat availability
-grpcurl -plaintext -d '{"showtime_id": "showtime-1", "seat_numbers": ["A01"]}' \
+grpcurl -plaintext -d '{
+  "showtime_id": "showtime-001",
+  "seat_numbers": ["A7", "A8"]
+}' localhost:9090 cinema.CinemaService/CheckSeatAvailability
+
+# Test seat locking
+grpcurl -plaintext -d '{
+  "showtime_id": "showtime-001",
+  "seat_numbers": ["B5", "B6"],
+  "booking_id": "manual-test-123",
+  "lock_duration_seconds": 300
+}' localhost:9090 cinema.CinemaService/LockSeats
+```
+
+### Integration Testing
+
+#### Service-to-Service Communication
+Test gRPC integration with other microservices:
+
+```python
+# Example: Booking Service calling Cinema Service
+import grpc
+import cinema_pb2
+import cinema_pb2_grpc
+
+def test_booking_integration():
+    # Create gRPC channel
+    channel = grpc.insecure_channel('localhost:9090')
+    stub = cinema_pb2_grpc.CinemaServiceStub(channel)
+    
+    # Check availability before booking
+    availability_request = cinema_pb2.CheckSeatAvailabilityRequest(
+        showtime_id='showtime-001',
+        seat_numbers=['A1', 'A2']
+    )
+    
+    availability_response = stub.CheckSeatAvailability(availability_request)
+    
+    if availability_response.available:
+        # Lock seats for booking
+        lock_request = cinema_pb2.LockSeatsRequest(
+            showtime_id='showtime-001',
+            seat_numbers=['A1', 'A2'],
+            booking_id='booking-456',
+            lock_duration_seconds=300
+        )
+        
+        lock_response = stub.LockSeats(lock_request)
+        return lock_response.success
+    
+    return False
+```
+
+### Load Testing
+
+#### REST API Load Testing
+```bash
+# Install Apache Bench (if not installed)
+# Ubuntu: sudo apt-get install apache2-utils
+# macOS: brew install httpie
+
+# Test seat availability endpoint
+ab -n 1000 -c 10 http://localhost:8002/api/v1/showtimes/showtime-001/seats/available
+
+# Test movie search endpoint
+ab -n 500 -c 5 "http://localhost:8002/api/v1/movies/search?title=test"
+```
+
+#### gRPC Load Testing
+```bash
+# Install ghz (gRPC load testing tool)
+go install github.com/bojand/ghz/cmd/ghz@latest
+
+# Load test seat availability check
+ghz --insecure \
+    --proto ./proto/cinema.proto \
+    --call cinema.CinemaService.CheckSeatAvailability \
+    -d '{"showtime_id": "showtime-001", "seat_numbers": ["A1"]}' \
+    -c 10 -n 100 \
+    localhost:9090
+
+# Load test seat locking
+ghz --insecure \
+    --proto ./proto/cinema.proto \
+    --call cinema.CinemaService.LockSeats \
+    -d '{"showtime_id": "showtime-001", "seat_numbers": ["B1"], "booking_id": "load-test", "lock_duration_seconds": 300}' \
+    -c 5 -n 50 \
+    localhost:9090
+```
   localhost:9090 cinema.CinemaService/CheckSeatAvailability
 ```
 

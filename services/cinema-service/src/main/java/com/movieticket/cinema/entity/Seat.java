@@ -1,10 +1,13 @@
 package com.movieticket.cinema.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "seats")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Seat {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -13,35 +16,37 @@ public class Seat {
     @Column(name = "seat_number", nullable = false)
     private String seatNumber;
 
-    @Column(name = "row_name", nullable = false)
-    private String rowName;
+    @Column(name = "is_booked")
+    private Boolean isBooked = false;
 
-    @Column(name = "seat_type")
-    private String seatType; // REGULAR, VIP, PREMIUM
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private SeatStatus status;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "showtime_id", nullable = false)
-    private Showtime showtime;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "screen_id", nullable = false)
-    private Screen screen;
+    @Column(name = "is_locked")
+    private Boolean isLocked = false;
 
     @Column(name = "locked_by")
-    private String lockedBy; // booking_id when locked
+    private String lockedBy;
+
+    @Column(name = "lock_expiration")
+    private LocalDateTime lockExpiration;
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 
     @Column(name = "booked_by")
-    private String bookedBy; // user_id when booked
+    private String bookedBy;
+
+    @Column(name = "booked_at")
+    private LocalDateTime bookedAt;
 
     @Column(name = "booking_id")
     private String bookingId;
+
+    @Column(name = "seat_type")
+    private String seatType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "showtime_id", nullable = false)
+    @JsonIgnore
+    private Showtime showtime;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -51,18 +56,16 @@ public class Seat {
 
     // Constructors
     public Seat() {
-        this.status = SeatStatus.AVAILABLE;
+        this.isBooked = false;
+        this.isLocked = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    public Seat(String seatNumber, String rowName, Showtime showtime, Screen screen) {
+    public Seat(String seatNumber, Showtime showtime) {
         this();
         this.seatNumber = seatNumber;
-        this.rowName = rowName;
         this.showtime = showtime;
-        this.screen = screen;
-        this.seatType = "REGULAR";
     }
 
     // Getters and Setters
@@ -82,12 +85,24 @@ public class Seat {
         this.seatNumber = seatNumber;
     }
 
-    public String getRowName() {
-        return rowName;
+    public Boolean getIsBooked() {
+        return isBooked;
     }
 
-    public void setRowName(String rowName) {
-        this.rowName = rowName;
+    public void setIsBooked(Boolean isBooked) {
+        this.isBooked = isBooked;
+        if (isBooked) {
+            this.updatedAt = LocalDateTime.now();
+        }
+    }
+
+    public Boolean getIsLocked() {
+        return isLocked;
+    }
+
+    public void setIsLocked(Boolean isLocked) {
+        this.isLocked = isLocked;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public String getSeatType() {
@@ -96,30 +111,6 @@ public class Seat {
 
     public void setSeatType(String seatType) {
         this.seatType = seatType;
-    }
-
-    public SeatStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(SeatStatus status) {
-        this.status = status;
-    }
-
-    public Showtime getShowtime() {
-        return showtime;
-    }
-
-    public void setShowtime(Showtime showtime) {
-        this.showtime = showtime;
-    }
-
-    public Screen getScreen() {
-        return screen;
-    }
-
-    public void setScreen(Screen screen) {
-        this.screen = screen;
     }
 
     public String getLockedBy() {
@@ -154,6 +145,30 @@ public class Seat {
         this.bookingId = bookingId;
     }
 
+    public Showtime getShowtime() {
+        return showtime;
+    }
+
+    public void setShowtime(Showtime showtime) {
+        this.showtime = showtime;
+    }
+
+    public LocalDateTime getLockExpiration() {
+        return lockExpiration;
+    }
+
+    public void setLockExpiration(LocalDateTime lockExpiration) {
+        this.lockExpiration = lockExpiration;
+    }
+
+    public LocalDateTime getBookedAt() {
+        return bookedAt;
+    }
+
+    public void setBookedAt(LocalDateTime bookedAt) {
+        this.bookedAt = bookedAt;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -168,6 +183,23 @@ public class Seat {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    // Business logic methods
+    public boolean isAvailable() {
+        return !isBooked && !isLocked;
+    }
+
+    public boolean isBooked() {
+        return isBooked;
+    }
+
+    public boolean isLocked() {
+        return isLocked;
+    }
+
+    public boolean isLockExpired() {
+        return lockExpiration != null && LocalDateTime.now().isAfter(lockExpiration);
     }
 
     @PreUpdate

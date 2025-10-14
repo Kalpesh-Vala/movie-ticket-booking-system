@@ -74,6 +74,10 @@ public class CinemaService {
         return showtimeRepository.findById(id);
     }
 
+    public Optional<Showtime> getShowtimeByIdWithDetails(String id) {
+        return showtimeRepository.findByIdWithDetails(id);
+    }
+
     public List<Showtime> getShowtimesByMovieId(String movieId) {
         return showtimeRepository.findByMovieId(movieId);
     }
@@ -93,11 +97,20 @@ public class CinemaService {
     }
 
     public List<Seat> getSeatsByShowtimeIdAndStatus(String showtimeId, SeatStatus status) {
-        return seatRepository.findByShowtimeIdAndStatus(showtimeId, status);
+        switch (status) {
+            case AVAILABLE:
+                return seatRepository.findAvailableSeatsByShowtimeId(showtimeId);
+            case LOCKED:
+                return seatRepository.findLockedSeatsByShowtimeId(showtimeId);
+            case BOOKED:
+                return seatRepository.findBookedSeatsByShowtimeId(showtimeId);
+            default:
+                return seatRepository.findByShowtimeId(showtimeId);
+        }
     }
 
     public List<Seat> getAvailableSeats(String showtimeId) {
-        return seatRepository.findByShowtimeIdAndStatus(showtimeId, SeatStatus.AVAILABLE);
+        return seatRepository.findAvailableSeatsByShowtimeId(showtimeId);
     }
 
     // Search operations

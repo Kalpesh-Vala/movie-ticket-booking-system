@@ -2,7 +2,6 @@ package com.movieticket.cinema.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "seat_locks")
@@ -11,8 +10,11 @@ public class SeatLock {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "lock_id", unique = true, nullable = false)
+    @Column(name = "lock_id", nullable = false)
     private String lockId;
+
+    @Column(name = "seat_id", nullable = false)
+    private String seatId;
 
     @Column(name = "booking_id", nullable = false)
     private String bookingId;
@@ -20,36 +22,34 @@ public class SeatLock {
     @Column(name = "showtime_id", nullable = false)
     private String showtimeId;
 
-    @ElementCollection
-    @CollectionTable(name = "seat_lock_seats", joinColumns = @JoinColumn(name = "seat_lock_id"))
-    @Column(name = "seat_number")
-    private List<String> seatNumbers;
+    @Column(name = "locked_at")
+    private LocalDateTime lockedAt;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "released_at")
+    private LocalDateTime releasedAt;
 
     @Column(name = "is_active")
     private Boolean isActive;
 
     // Constructors
     public SeatLock() {
-        this.createdAt = LocalDateTime.now();
+        this.lockedAt = LocalDateTime.now();
         this.isActive = true;
     }
 
-    public SeatLock(String lockId, String bookingId, String showtimeId, List<String> seatNumbers, LocalDateTime expiresAt) {
+    public SeatLock(String lockId, String seatId, String bookingId, String showtimeId, LocalDateTime expiresAt) {
         this();
         this.lockId = lockId;
+        this.seatId = seatId;
         this.bookingId = bookingId;
         this.showtimeId = showtimeId;
-        this.seatNumbers = seatNumbers;
         this.expiresAt = expiresAt;
     }
 
-    // Getters and Setters
+    // Getters and setters
     public String getId() {
         return id;
     }
@@ -64,6 +64,14 @@ public class SeatLock {
 
     public void setLockId(String lockId) {
         this.lockId = lockId;
+    }
+
+    public String getSeatId() {
+        return seatId;
+    }
+
+    public void setSeatId(String seatId) {
+        this.seatId = seatId;
     }
 
     public String getBookingId() {
@@ -82,12 +90,12 @@ public class SeatLock {
         this.showtimeId = showtimeId;
     }
 
-    public List<String> getSeatNumbers() {
-        return seatNumbers;
+    public LocalDateTime getLockedAt() {
+        return lockedAt;
     }
 
-    public void setSeatNumbers(List<String> seatNumbers) {
-        this.seatNumbers = seatNumbers;
+    public void setLockedAt(LocalDateTime lockedAt) {
+        this.lockedAt = lockedAt;
     }
 
     public LocalDateTime getExpiresAt() {
@@ -98,12 +106,12 @@ public class SeatLock {
         this.expiresAt = expiresAt;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public LocalDateTime getReleasedAt() {
+        return releasedAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setReleasedAt(LocalDateTime releasedAt) {
+        this.releasedAt = releasedAt;
     }
 
     public Boolean getIsActive() {
@@ -112,9 +120,5 @@ public class SeatLock {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
-    }
-
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiresAt);
     }
 }

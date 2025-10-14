@@ -1,12 +1,13 @@
 package com.movieticket.cinema.entity;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "cinemas")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cinema {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,7 +29,7 @@ public class Cinema {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "cinema", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonIgnoreProperties({"cinema", "showtimes"})
     private List<Screen> screens;
 
     // Constructors

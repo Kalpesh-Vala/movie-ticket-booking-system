@@ -1,13 +1,14 @@
 package com.movieticket.cinema.entity;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "screens")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Screen {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -21,7 +22,7 @@ public class Screen {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cinema_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private Cinema cinema;
 
     @Column(name = "created_at")
@@ -31,11 +32,7 @@ public class Screen {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
-    private List<Seat> seats;
-
-    @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonIgnoreProperties({"screen", "seats"})
     private List<Showtime> showtimes;
 
     // Constructors
@@ -98,14 +95,6 @@ public class Screen {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
-    }
-
-    public List<Seat> getSeats() {
-        return seats;
-    }
-
-    public void setSeats(List<Seat> seats) {
-        this.seats = seats;
     }
 
     public List<Showtime> getShowtimes() {

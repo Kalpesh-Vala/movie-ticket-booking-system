@@ -6,7 +6,6 @@ import com.movieticket.cinema.entity.Seat;
 import com.movieticket.cinema.entity.Showtime;
 import com.movieticket.cinema.entity.Movie;
 import com.movieticket.cinema.entity.Cinema;
-import com.movieticket.cinema.entity.SeatStatus;
 import com.movieticket.cinema.service.SeatLockingService;
 import com.movieticket.cinema.service.CinemaService;
 import com.movieticket.cinema.service.SeatLockResult;
@@ -49,7 +48,7 @@ public class CinemaServiceImpl extends CinemaServiceImplBase {
                 // Get details of unavailable seats
                 List<Seat> seats = seatRepository.findByShowtimeIdAndSeatNumberIn(showtimeId, seatNumbers);
                 List<SeatInfo> unavailableSeats = seats.stream()
-                    .filter(seat -> seat.getStatus() != SeatStatus.AVAILABLE)
+                    .filter(seat -> seat.getIsBooked() || seat.getIsLocked())
                     .map(this::convertToSeatInfo)
                     .collect(Collectors.toList());
                 
@@ -163,7 +162,7 @@ public class CinemaServiceImpl extends CinemaServiceImplBase {
         try {
             String showtimeId = request.getShowtimeId();
 
-            Optional<Showtime> showtimeOpt = cinemaService.getShowtimeById(showtimeId);
+            Optional<Showtime> showtimeOpt = cinemaService.getShowtimeByIdWithDetails(showtimeId);
             if (!showtimeOpt.isPresent()) {
                 responseObserver.onError(Status.NOT_FOUND
                     .withDescription("Showtime not found")
@@ -196,30 +195,25 @@ public class CinemaServiceImpl extends CinemaServiceImplBase {
     private SeatInfo convertToSeatInfo(Seat seat) {
         SeatInfo.Builder builder = SeatInfo.newBuilder()
             .setSeatNumber(seat.getSeatNumber())
-            .setStatus(convertSeatStatus(seat.getStatus()));
+            .setStatus(convertSeatStatus(seat));
 
         if (seat.getLockedBy() != null) {
             builder.setLockedBy(seat.getLockedBy());
         }
-        if (seat.getLockedUntil() != null) {
-            builder.setLockedUntil(seat.getLockedUntil().toEpochSecond(ZoneOffset.UTC));
+        if (seat.getLockExpiration() != null) {
+            builder.setLockedUntil(seat.getLockExpiration().toEpochSecond(ZoneOffset.UTC));
         }
 
         return builder.build();
     }
 
-    private com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus convertSeatStatus(SeatStatus status) {
-        switch (status) {
-            case AVAILABLE:
-                return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.AVAILABLE;
-            case LOCKED:
-                return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.LOCKED;
-            case BOOKED:
-                return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.BOOKED;
-            case MAINTENANCE:
-                return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.MAINTENANCE;
-            default:
-                return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.AVAILABLE;
+    private com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus convertSeatStatus(Seat seat) {
+        if (seat.getIsBooked()) {
+            return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.BOOKED;
+        } else if (seat.getIsLocked()) {
+            return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.LOCKED;
+        } else {
+            return com.movieticket.cinema.grpc.CinemaServiceProto.SeatStatus.AVAILABLE;
         }
     }
 
