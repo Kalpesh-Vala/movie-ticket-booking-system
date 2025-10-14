@@ -1,6 +1,7 @@
 package com.movieticket.cinema.controller;
 
 import com.movieticket.cinema.entity.*;
+import com.movieticket.cinema.dto.CreateShowtimeRequest;
 import com.movieticket.cinema.service.CinemaService;
 import com.movieticket.cinema.service.SeatLockingService;
 import com.movieticket.cinema.service.SeatLockResult;
@@ -44,6 +45,18 @@ public class CinemaController {
         return ResponseEntity.ok(savedCinema);
     }
 
+    @PutMapping("/cinemas/{id}")
+    public ResponseEntity<Cinema> updateCinema(@PathVariable String id, @RequestBody Cinema cinema) {
+        Optional<Cinema> existingCinema = cinemaService.getCinemaById(id);
+        if (existingCinema.isPresent()) {
+            cinema.setId(id);
+            Cinema updatedCinema = cinemaService.updateCinema(cinema);
+            return ResponseEntity.ok(updatedCinema);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // Movie endpoints
     @GetMapping("/movies")
     public ResponseEntity<List<Movie>> getAllMovies() {
@@ -85,9 +98,13 @@ public class CinemaController {
     }
 
     @PostMapping("/showtimes")
-    public ResponseEntity<Showtime> createShowtime(@RequestBody Showtime showtime) {
-        Showtime savedShowtime = cinemaService.createShowtime(showtime);
-        return ResponseEntity.ok(savedShowtime);
+    public ResponseEntity<Showtime> createShowtime(@RequestBody CreateShowtimeRequest request) {
+        try {
+            Showtime savedShowtime = cinemaService.createShowtime(request);
+            return ResponseEntity.ok(savedShowtime);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     // Health check endpoint
@@ -169,6 +186,18 @@ public class CinemaController {
             }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/showtimes/{showtimeId}/seats/locked")
+    public ResponseEntity<List<SeatLock>> getLockedSeats(
+            @PathVariable String showtimeId,
+            @RequestParam(required = false) String userId) {
+        try {
+            List<SeatLock> lockedSeats = seatLockingService.getLockedSeats(showtimeId, userId);
+            return ResponseEntity.ok(lockedSeats);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
         }
     }
 

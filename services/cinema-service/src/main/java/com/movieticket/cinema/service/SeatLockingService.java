@@ -292,4 +292,15 @@ public class SeatLockingService {
             return false;
         }
     }
+
+    /**
+     * Get locked seats for a showtime, optionally filtered by user ID
+     */
+    public List<SeatLock> getLockedSeats(String showtimeId, String userId) {
+        if (userId != null && !userId.isEmpty()) {
+            return seatLockRepository.findActiveByShowtimeIdAndBookingId(showtimeId, userId);
+        } else {
+            return seatLockRepository.findActiveByShowtimeId(showtimeId);
+        }
+    }
 }

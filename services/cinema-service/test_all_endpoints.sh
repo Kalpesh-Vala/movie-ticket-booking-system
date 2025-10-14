@@ -70,6 +70,22 @@ test_endpoint "GET" "$API_PREFIX/cinemas?size=2" "Get All Cinemas (Limited)"
 # Get cinema by ID
 test_endpoint "GET" "$API_PREFIX/cinemas/cinema-001" "Get Cinema by ID"
 
+# Create a new cinema
+create_cinema_data='{
+  "name": "Test Multiplex Cinema",
+  "location": "456 Oak Avenue, Test City",
+  "totalScreens": 5
+}'
+test_endpoint "POST" "$API_PREFIX/cinemas" "Create Cinema" "$create_cinema_data"
+
+# Update cinema (using existing one)
+update_cinema_data='{
+  "name": "Updated Cinema Name",
+  "location": "Updated Location Address",
+  "totalScreens": 8
+}'
+test_endpoint "PUT" "$API_PREFIX/cinemas/cinema-001" "Update Cinema" "$update_cinema_data"
+
 # Get screens for a cinema
 test_endpoint "GET" "$API_PREFIX/cinemas/cinema-001/screens" "Get Screens for Cinema"
 
@@ -81,6 +97,16 @@ test_endpoint "GET" "$API_PREFIX/movies" "Get All Movies"
 
 # Get movie by ID
 test_endpoint "GET" "$API_PREFIX/movies/movie-001" "Get Movie by ID"
+
+# Create a new movie
+create_movie_data='{
+  "title": "Test Movie: Endgame",
+  "description": "Epic superhero movie for testing",
+  "genre": "Action",
+  "durationMinutes": 181,
+  "rating": "PG-13"
+}'
+test_endpoint "POST" "$API_PREFIX/movies" "Create Movie" "$create_movie_data"
 
 # 4. Screen Endpoints
 echo -e "\n${BLUE}=== SCREEN ENDPOINTS ===${NC}"
@@ -99,6 +125,16 @@ test_endpoint "GET" "$API_PREFIX/showtimes" "Get All Showtimes"
 
 # Get showtime by ID
 test_endpoint "GET" "$API_PREFIX/showtimes/showtime-001" "Get Showtime by ID"
+
+# Create a new showtime
+create_showtime_data='{
+  "movieId": "movie-001",
+  "screenId": "screen-001",
+  "startTime": "2025-12-20T19:30:00",
+  "endTime": "2025-12-20T22:31:00",
+  "price": 15.99
+}'
+test_endpoint "POST" "$API_PREFIX/showtimes" "Create Showtime" "$create_showtime_data"
 
 # Get seats for a showtime
 test_endpoint "GET" "$API_PREFIX/showtimes/showtime-001/seats" "Get Seats for Showtime"
@@ -134,6 +170,9 @@ fi
 
 # Check locked seats status
 test_endpoint "GET" "$API_PREFIX/showtimes/showtime-001/seats?status=LOCKED" "Get Locked Seats"
+
+# Get locked seats by user
+test_endpoint "GET" "$API_PREFIX/showtimes/showtime-001/seats/locked?userId=test-user" "Get Locked Seats by User"
 
 # Release seats (unlock)
 release_data='["A1", "A2"]'

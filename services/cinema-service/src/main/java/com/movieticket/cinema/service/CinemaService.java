@@ -1,6 +1,7 @@
 package com.movieticket.cinema.service;
 
 import com.movieticket.cinema.entity.*;
+import com.movieticket.cinema.dto.CreateShowtimeRequest;
 import com.movieticket.cinema.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,11 @@ public class CinemaService {
 
     @Transactional
     public Cinema createCinema(Cinema cinema) {
+        return cinemaRepository.save(cinema);
+    }
+
+    @Transactional
+    public Cinema updateCinema(Cinema cinema) {
         return cinemaRepository.save(cinema);
     }
 
@@ -88,6 +94,27 @@ public class CinemaService {
 
     @Transactional
     public Showtime createShowtime(Showtime showtime) {
+        return showtimeRepository.save(showtime);
+    }
+
+    @Transactional
+    public Showtime createShowtime(CreateShowtimeRequest request) {
+        // Find movie and screen
+        Movie movie = movieRepository.findById(request.getMovieId())
+                .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
+        Screen screen = screenRepository.findById(request.getScreenId())
+                .orElseThrow(() -> new IllegalArgumentException("Screen not found"));
+
+        // Create showtime
+        Showtime showtime = new Showtime();
+        showtime.setMovie(movie);
+        showtime.setScreen(screen);
+        showtime.setStartTime(request.getStartTime());
+        showtime.setEndTime(request.getEndTime());
+        showtime.setBasePrice(request.getPrice());
+        showtime.setTotalSeats(screen.getTotalSeats());
+        showtime.setAvailableSeats(screen.getTotalSeats());
+
         return showtimeRepository.save(showtime);
     }
 

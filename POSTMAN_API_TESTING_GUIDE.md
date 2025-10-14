@@ -244,7 +244,20 @@ Content-Type: application/json
 
 {
   "name": "Multiplex Cinema",
-  "location": "456 Oak Avenue, Uptown"
+  "location": "456 Oak Avenue, Uptown",
+  "totalScreens": 5
+}
+```
+
+**Response:**
+```json
+{
+  "id": "f40f83c1-5127-4b50-a8b9-df2d578b6cec",
+  "name": "Multiplex Cinema",
+  "location": "456 Oak Avenue, Uptown",
+  "totalScreens": 5,
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
 }
 ```
 
@@ -284,11 +297,24 @@ Content-Type: application/json
 
 {
   "title": "Avengers: Endgame",
-  "description": "Epic superhero movie",
   "genre": "Action",
-  "duration": 181,
+  "durationMinutes": 181,
   "rating": "PG-13",
-  "releaseDate": "2024-06-15"
+  "description": "Epic superhero movie for testing"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "e72fef90-138c-4257-8c3d-3e2bdaa763f9",
+  "title": "Avengers: Endgame",
+  "genre": "Action",
+  "durationMinutes": 181,
+  "rating": "PG-13",
+  "description": "Epic superhero movie for testing",
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
 }
 ```
 
@@ -389,7 +415,31 @@ Content-Type: application/json
   "screenId": "screen-001",
   "startTime": "2024-12-20T19:30:00",
   "endTime": "2024-12-20T22:31:00",
-  "price": 15.00
+  "price": 15.99
+}
+```
+
+**Response:**
+```json
+{
+  "id": "2db57aa5-66fc-4cbd-b3a1-2381361701d9",
+  "movie": {
+    "id": "movie-001",
+    "title": "The Matrix Resurrections",
+    "genre": "Sci-Fi",
+    "durationMinutes": 148,
+    "rating": "R",
+    "description": "Return to the world of The Matrix",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  },
+  "startTime": "2024-12-20T19:30:00",
+  "endTime": "2024-12-20T22:31:00",
+  "basePrice": 15.99,
+  "totalSeats": 100,
+  "availableSeats": 100,
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
 }
 ```
 
@@ -416,20 +466,7 @@ Content-Type: application/json
 
 **Expected Response:**
 ```json
-{
-  "success": true,
-  "lockedSeats": [
-    {
-      "id": "lock-001",
-      "seatId": "seat-001",
-      "showtimeId": "{{showtime_id}}",
-      "userId": "{{user_id}}",
-      "lockedAt": "2024-01-20T15:30:00",
-      "expiresAt": "2024-01-20T15:45:00"
-    }
-  ],
-  "message": "Seats locked successfully"
-}
+"Seats locked successfully. Lock ID: 95f4dfba-0717-4030-87c1-1fdd2f6be4a4"
 ```
 
 ### **2.19 Release Seats**
@@ -442,10 +479,7 @@ Content-Type: application/json
 
 **Expected Response:**
 ```json
-{
-  "success": true,
-  "message": "Seats released successfully"
-}
+"Seats released successfully"
 ```
 
 ### **2.20 Get Locked Seats**
@@ -457,25 +491,44 @@ GET {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/locked?userId={{user_id}
 ```json
 [
   {
-    "id": "lock-001",
-    "seatId": "seat-001",
+    "id": "83f3a143-6a15-4477-a4c7-17acd8d8fa76",
+    "lockId": "0e97dc28-b624-4b65-82ec-4082ebd86cf8",
+    "seatId": "seat-showtime-001-A1",
+    "bookingId": "test-user",
     "showtimeId": "{{showtime_id}}",
-    "userId": "{{user_id}}",
     "lockedAt": "2024-01-20T15:30:00",
-    "expiresAt": "2024-01-20T15:45:00"
+    "expiresAt": "2024-01-20T15:45:00",
+    "isActive": true
   }
 ]
 ```
 
-### **✅ Cinema Service API Updates**
+### **✅ Cinema Service Implementation Status**
+
+**✅ Fully Implemented and Tested Endpoints:**
+- ✅ Health check via `/health/cinema`
+- ✅ Complete cinema management (GET, POST, PUT)
+- ✅ Complete movie management (GET, POST) with search
+- ✅ Complete showtime management (GET, POST) with search
+- ✅ Complete screen management (GET)
+- ✅ Comprehensive seat management with locking/releasing
+- ✅ All search operations (movies by title, showtimes by movie/date)
+- ✅ Error handling for non-existent resources
+
+**❌ Not Implemented:**
+- ❌ UPDATE movie endpoints (PUT /api/v1/movies/{id})
+- ❌ UPDATE showtime endpoints (PUT /api/v1/showtimes/{id})
+- ❌ DELETE endpoints for any resources (cinemas, movies, showtimes)
 
 **Important Notes:**
-- All Cinema Service endpoints have been thoroughly tested and validated
+- All Cinema Service endpoints listed in this guide have been thoroughly tested and validated
 - Seat locking uses array format `["A1", "A2"]` with `userId` as query parameter
 - IDs are string format (e.g., `"cinema-001"`, `"movie-001"`)
 - Search endpoints support partial matching
 - Pagination available on cinema list with `size` and `page` parameters
 - Status filtering available on seat endpoints with `status` parameter
+
+### **✅ Cinema Service API Updates**
 
 **Tested and Validated Endpoints:**
 - ✅ Health check via `/actuator/health`

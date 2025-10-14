@@ -84,8 +84,75 @@ GET /api/v1/cinemas/{id}
   "id": "cinema-001",
   "name": "Multiplex Downtown",
   "location": "123 Main Street, Downtown",
+  "totalScreens": 8,
   "createdAt": "2024-01-01T10:00:00",
-  "updatedAt": "2024-01-01T10:00:00"
+  "updatedAt": "2024-01-01T10:00:00",
+  "screens": [
+    {
+      "id": "screen-001",
+      "screenNumber": "Screen 1",
+      "totalSeats": 100,
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
+    }
+  ]
+}
+```
+
+### Create Cinema
+```http
+POST /api/v1/cinemas
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "New Cinema Complex",
+  "location": "456 Oak Avenue, Uptown",
+  "totalScreens": 5
+}
+```
+
+**Response:**
+```json
+{
+  "id": "f40f83c1-5127-4b50-a8b9-df2d578b6cec",
+  "name": "New Cinema Complex",
+  "location": "456 Oak Avenue, Uptown",
+  "totalScreens": 5,
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
+}
+```
+
+### Update Cinema
+```http
+PUT /api/v1/cinemas/{id}
+Content-Type: application/json
+```
+
+**Parameters:**
+- `id` (path) - Cinema ID
+
+**Request Body:**
+```json
+{
+  "name": "Updated Cinema Name",
+  "location": "Updated Location Address",
+  "totalScreens": 8
+}
+```
+
+**Response:**
+```json
+{
+  "id": "cinema-001",
+  "name": "Updated Cinema Name",
+  "location": "Updated Location Address",
+  "totalScreens": 8,
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-20T15:30:00"
 }
 ```
 
@@ -139,11 +206,6 @@ Content-Type: application/json
   "name": "Updated Cinema Name",
   "location": "Updated Location"
 }
-```
-
-### Delete Cinema
-```http
-DELETE /api/v1/cinemas/{id}
 ```
 
 ## Movie Management
@@ -231,25 +293,26 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "title": "New Movie",
-  "description": "Movie description",
-  "duration": 120,
-  "genre": "Drama",
-  "rating": "PG",
-  "language": "English",
-  "releaseDate": "2024-06-15"
+  "title": "Avengers: Endgame",
+  "genre": "Action",
+  "durationMinutes": 181,
+  "rating": "PG-13",
+  "description": "Epic superhero movie for testing"
 }
 ```
 
-### Update Movie
-```http
-PUT /api/v1/movies/{id}
-Content-Type: application/json
-```
-
-### Delete Movie
-```http
-DELETE /api/v1/movies/{id}
+**Response:**
+```json
+{
+  "id": "e72fef90-138c-4257-8c3d-3e2bdaa763f9",
+  "title": "Avengers: Endgame",
+  "genre": "Action",
+  "durationMinutes": 181,
+  "rating": "PG-13",
+  "description": "Epic superhero movie for testing",
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
+}
 ```
 
 ## Screen Management
@@ -357,15 +420,65 @@ GET /api/v1/showtimes/{id}
 ```json
 {
   "id": "showtime-001",
-  "movieId": "movie-001",
-  "screenId": "screen-001",
+  "movie": {
+    "id": "movie-001",
+    "title": "The Matrix Resurrections",
+    "genre": "Sci-Fi",
+    "durationMinutes": 148,
+    "rating": "R",
+    "description": "Return to the world of The Matrix",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  },
   "startTime": "2024-01-20T19:30:00",
   "endTime": "2024-01-20T22:00:00",
-  "price": 12.50,
+  "basePrice": 12.50,
+  "totalSeats": 100,
+  "availableSeats": 85,
   "createdAt": "2024-01-01T10:00:00",
   "updatedAt": "2024-01-01T10:00:00"
 }
 ```
+
+### Create Showtime
+```http
+POST /api/v1/showtimes
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "movieId": "movie-001",
+  "screenId": "screen-001",
+  "startTime": "2024-12-20T19:30:00",
+  "endTime": "2024-12-20T22:31:00",
+  "price": 15.99
+}
+```
+
+**Response:**
+```json
+{
+  "id": "2db57aa5-66fc-4cbd-b3a1-2381361701d9",
+  "movie": {
+    "id": "movie-001",
+    "title": "The Matrix Resurrections",
+    "genre": "Sci-Fi",
+    "durationMinutes": 148,
+    "rating": "R",
+    "description": "Return to the world of The Matrix",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  },
+  "startTime": "2024-12-20T19:30:00",
+  "endTime": "2024-12-20T22:31:00",
+  "basePrice": 15.99,
+  "totalSeats": 100,
+  "availableSeats": 100,
+  "createdAt": "2024-01-20T15:30:00",
+  "updatedAt": "2024-01-20T15:30:00"
+}
 
 ### Get Seats for Showtime
 ```http
@@ -416,18 +529,6 @@ GET /api/v1/showtimes/{showtimeId}/seats/available
     "isLocked": false
   }
 ]
-```
-```
-
-### Update Showtime
-```http
-PUT /api/v1/showtimes/{id}
-Content-Type: application/json
-```
-
-### Delete Showtime
-```http
-DELETE /api/v1/showtimes/{id}
 ```
 
 ## Seat Management
@@ -491,20 +592,7 @@ Content-Type: application/json
 
 **Response:**
 ```json
-{
-  "success": true,
-  "lockedSeats": [
-    {
-      "id": "lock-001",
-      "seatId": "seat-001", 
-      "showtimeId": "showtime-001",
-      "userId": "test-user",
-      "lockedAt": "2024-01-20T15:30:00",
-      "expiresAt": "2024-01-20T15:45:00"
-    }
-  ],
-  "message": "Seats locked successfully"
-}
+"Seats locked successfully. Lock ID: 95f4dfba-0717-4030-87c1-1fdd2f6be4a4"
 ```
 
 ### Release Seats
@@ -520,14 +608,10 @@ Content-Type: application/json
 ```json
 ["A1", "A2"]
 ```
-```
 
 **Response:**
 ```json
-{
-  "success": true,
-  "message": "Seats released successfully"
-}
+"Seats released successfully"
 ```
 
 ### Get Locked Seats
@@ -537,18 +621,20 @@ GET /api/v1/showtimes/{showtimeId}/seats/locked?userId={userId}
 
 **Parameters:**
 - `showtimeId` (path) - Showtime ID
-- `userId` (query) - User ID to filter locked seats
+- `userId` (query, optional) - User ID to filter locked seats by specific user
 
 **Response:**
 ```json
 [
   {
-    "id": "lock-001",
-    "seatId": "seat-001",
-    "showtimeId": "showtime-001", 
-    "userId": "test-user",
+    "id": "83f3a143-6a15-4477-a4c7-17acd8d8fa76",
+    "lockId": "0e97dc28-b624-4b65-82ec-4082ebd86cf8",
+    "seatId": "seat-showtime-001-A1",
+    "bookingId": "test-user",
+    "showtimeId": "showtime-001",
     "lockedAt": "2024-01-20T15:30:00",
-    "expiresAt": "2024-01-20T15:45:00"
+    "expiresAt": "2024-01-20T15:45:00",
+    "isActive": true
   }
 ]
 ```
