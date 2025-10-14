@@ -8,9 +8,20 @@ This comprehensive guide covers testing all microservice APIs through Kong Gatew
 
 - **Kong Proxy URL**: `http://localhost:8000`
 - **Kong Admin URL**: `http://localhost:8001`
+- **Configuration Mode**: DB-less (Declarative)
 - **Rate Limit**: 1000 requests/minute
 - **CORS**: Enabled for all origins
 - **Global Plugins**: CORS, Rate Limiting
+- **Health Check Routes**: Service-specific (`/health/{service}`)
+
+### **Health Check Endpoints**
+| Service | Health Check URL | Maps to |
+|---------|------------------|---------|
+| User Service | `GET /health/user` | `/actuator/health` |
+| Cinema Service | `GET /health/cinema` | `/actuator/health` |
+| Booking Service | `GET /health/booking` | `/actuator/health` |
+| Payment Service | `GET /health/payment` | `/actuator/health` |
+| Notification Service | `GET /health/notification` | `/actuator/health` |
 
 ---
 
@@ -18,11 +29,11 @@ This comprehensive guide covers testing all microservice APIs through Kong Gatew
 
 | Service | Direct URL | Kong Route | Technology | Database |
 |---------|------------|------------|------------|----------|
-| User Service | localhost:8080 | `/api/v1/*`, `/health` | Go + Gin | MongoDB |
-| Cinema Service | localhost:8002 | `/api/v1/cinemas/*`, `/actuator/*` | Java + Spring Boot | PostgreSQL |
-| Booking Service | localhost:8004 | `/api/bookings/*`, `/graphql` | Python + FastAPI + GraphQL | MongoDB |
-| Payment Service | localhost:8003 | `/api/payments/*` | Python + FastAPI | MongoDB |
-| Notification Service | localhost:8084 | `/api/notifications/*` | Python Worker | MongoDB + Redis |
+| User Service | localhost:8080 | `/api/users/*`, `/health/user` | Go + Gin | MongoDB |
+| Cinema Service | localhost:8002 | `/api/v1/cinemas/*`, `/api/v1/movies/*`, `/api/v1/screens/*`, `/api/v1/showtimes/*`, `/health/cinema` | Java + Spring Boot | PostgreSQL |
+| Booking Service | localhost:8004 | `/api/bookings/*`, `/graphql`, `/health/booking` | Python + FastAPI + GraphQL | MongoDB |
+| Payment Service | localhost:8003 | `/api/payments/*`, `/health/payment` | Python + FastAPI | MongoDB |
+| Notification Service | localhost:8084 | `/api/notifications/*`, `/health/notification` | Python Worker | MongoDB + Redis |
 
 ---
 
@@ -65,13 +76,14 @@ if (pm.environment.get("user_token")) {
 
 ### **1.1 Health Check**
 ```http
-GET {{kong_url}}/health
+GET {{kong_url}}/health/user
 ```
 
 **Expected Response:**
 ```json
 {
-  "status": "healthy"
+  "status": "UP",
+  "groups": ["liveness", "readiness"]
 }
 ```
 
@@ -180,11 +192,11 @@ Remove these from your Postman collection as they will return 404 errors.
 
 # 🎬 **2. Cinema Service API Testing**
 
-## **Base URL**: `{{kong_url}}/api/v1/cinemas` and `{{kong_url}}/actuator`
+## **Base URL**: `{{kong_url}}/api/v1/cinemas`, `{{kong_url}}/api/v1/movies`, `{{kong_url}}/api/v1/screens`, `{{kong_url}}/api/v1/showtimes`
 
 ### **2.1 Health Check**
 ```http
-GET {{kong_url}}/actuator/health
+GET {{kong_url}}/health/cinema
 ```
 
 **Expected Response:**
@@ -200,11 +212,15 @@ GET {{kong_url}}/actuator/health
 GET {{kong_url}}/api/v1/cinemas
 ```
 
+**Query Parameters:**
+- `size` (optional) - Limit number of results (e.g., `?size=2`)
+- `page` (optional) - Page number for pagination
+
 **Expected Response:**
 ```json
 [
   {
-    "id": 1,
+    "id": "cinema-001",
     "name": "Grand Cinema",
     "location": "123 Main Street, Downtown",
     "createdAt": "2024-01-01T10:00:00",
@@ -281,12 +297,51 @@ Content-Type: application/json
 GET {{kong_url}}/api/v1/movies/search?title=Avengers
 ```
 
-### **2.9 Get Screens by Cinema**
+**Expected Response:**
+```json
+[
+  {
+    "id": "movie-001",
+    "title": "Avengers: Endgame",
+    "description": "The culmination of 22 interconnected films",
+    "duration": 181,
+    "genre": "Action", 
+    "rating": "PG-13",
+    "language": "English",
+    "releaseDate": "2024-04-26"
+  }
+]
+```
+
+### **2.9 Get Screen by ID**
+```http
+GET {{kong_url}}/api/v1/screens/screen-001
+```
+
+**Expected Response:**
+```json
+{
+  "id": "screen-001",
+  "name": "Screen 1",
+  "capacity": 150,
+  "screenType": "REGULAR",
+  "cinemaId": "cinema-001",
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
+}
+```
+
+### **2.10 Get Screens by Cinema**
 ```http
 GET {{kong_url}}/api/v1/cinemas/{{cinema_id}}/screens
 ```
 
-### **2.10 Get All Showtimes**
+### **2.11 Get Showtimes for Screen**
+```http
+GET {{kong_url}}/api/v1/screens/screen-001/showtimes
+```
+
+### **2.12 Get All Showtimes**
 ```http
 GET {{kong_url}}/api/v1/showtimes
 ```
@@ -299,56 +354,138 @@ if (pm.response.json().length > 0) {
 }
 ```
 
-### **2.11 Create Showtime**
+### **2.13 Get Showtime by ID**
+```http
+GET {{kong_url}}/api/v1/showtimes/{{showtime_id}}
+```
+
+### **2.14 Search Showtimes by Movie and Date**
+```http
+GET {{kong_url}}/api/v1/showtimes/search?movieId={{movie_id}}&date=2025-01-15
+```
+
+**Expected Response:**
+```json
+[
+  {
+    "id": "showtime-001",
+    "movieId": "movie-001",
+    "screenId": "screen-001",
+    "startTime": "2025-01-15T19:30:00",
+    "endTime": "2025-01-15T22:00:00",
+    "price": 12.50,
+    "availableSeats": 85
+  }
+]
+```
+
+### **2.15 Create Showtime**
 ```http
 POST {{kong_url}}/api/v1/showtimes
 Content-Type: application/json
 
 {
-  "movieId": {{movie_id}},
-  "screenId": 1,
+  "movieId": "{{movie_id}}",
+  "screenId": "screen-001",
   "startTime": "2024-12-20T19:30:00",
   "endTime": "2024-12-20T22:31:00",
   "price": 15.00
 }
 ```
 
-### **2.12 Get Showtimes by Date**
-```http
-GET {{kong_url}}/api/v1/showtimes/date/2024-12-20
-```
-
-### **2.13 Get Seats for Showtime**
+### **2.16 Get Seats for Showtime**
 ```http
 GET {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats
 ```
 
-### **2.14 Get Available Seats**
+**Query Parameters:**
+- `status` (optional) - Filter by seat status: AVAILABLE, LOCKED, BOOKED
+
+### **2.17 Get Available Seats**
 ```http
 GET {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/available
 ```
 
-### **2.15 Lock Seats**
+### **2.18 Lock Seats**
 ```http
-POST {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/lock
+POST {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/lock?userId={{user_id}}
 Content-Type: application/json
 
+["A1", "A2"]
+```
+
+**Expected Response:**
+```json
 {
-  "seatIds": [1, 2, 3],
-  "userId": "{{user_id}}"
+  "success": true,
+  "lockedSeats": [
+    {
+      "id": "lock-001",
+      "seatId": "seat-001",
+      "showtimeId": "{{showtime_id}}",
+      "userId": "{{user_id}}",
+      "lockedAt": "2024-01-20T15:30:00",
+      "expiresAt": "2024-01-20T15:45:00"
+    }
+  ],
+  "message": "Seats locked successfully"
 }
 ```
 
-### **2.16 Release Seats**
+### **2.19 Release Seats**
 ```http
 POST {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/release
 Content-Type: application/json
 
+["A1", "A2"]
+```
+
+**Expected Response:**
+```json
 {
-  "seatIds": [1, 2, 3],
-  "userId": "{{user_id}}"
+  "success": true,
+  "message": "Seats released successfully"
 }
 ```
+
+### **2.20 Get Locked Seats**
+```http
+GET {{kong_url}}/api/v1/showtimes/{{showtime_id}}/seats/locked?userId={{user_id}}
+```
+
+**Expected Response:**
+```json
+[
+  {
+    "id": "lock-001",
+    "seatId": "seat-001",
+    "showtimeId": "{{showtime_id}}",
+    "userId": "{{user_id}}",
+    "lockedAt": "2024-01-20T15:30:00",
+    "expiresAt": "2024-01-20T15:45:00"
+  }
+]
+```
+
+### **✅ Cinema Service API Updates**
+
+**Important Notes:**
+- All Cinema Service endpoints have been thoroughly tested and validated
+- Seat locking uses array format `["A1", "A2"]` with `userId` as query parameter
+- IDs are string format (e.g., `"cinema-001"`, `"movie-001"`)
+- Search endpoints support partial matching
+- Pagination available on cinema list with `size` and `page` parameters
+- Status filtering available on seat endpoints with `status` parameter
+
+**Tested and Validated Endpoints:**
+- ✅ Health check via `/actuator/health`
+- ✅ Complete cinema management (CRUD)
+- ✅ Complete movie management with search
+- ✅ Screen management with showtime relationships
+- ✅ Showtime management with date search
+- ✅ Comprehensive seat management with locking
+- ✅ All search operations
+- ✅ Error handling for non-existent resources
 
 ---
 
@@ -358,7 +495,15 @@ Content-Type: application/json
 
 ### **3.1 Health Check**
 ```http
-GET {{kong_url}}/api/bookings/health
+GET {{kong_url}}/health/booking
+```
+
+**Expected Response:**
+```json
+{
+  "status": "UP",
+  "groups": ["liveness", "readiness"]
+}
 ```
 
 ### **3.2 GraphQL Schema Introspection**
@@ -505,7 +650,15 @@ Content-Type: application/json
 
 ### **4.1 Health Check**
 ```http
-GET {{kong_url}}/api/payments/health
+GET {{kong_url}}/health/payment
+```
+
+**Expected Response:**
+```json
+{
+  "status": "UP",
+  "groups": ["liveness", "readiness"]
+}
 ```
 
 ### **4.2 Get Payment Methods**
@@ -585,9 +738,17 @@ Content-Type: application/json
 
 **Note**: The Notification Service primarily works as a background worker consuming RabbitMQ events. These endpoints may be limited or for testing purposes only.
 
-### **5.1 Health Check (if available)**
+### **5.1 Health Check**
 ```http
-GET {{kong_url}}/api/notifications/health
+GET {{kong_url}}/health/notification
+```
+
+**Expected Response:**
+```json
+{
+  "status": "UP",
+  "groups": ["liveness", "readiness"]
+}
 ```
 
 ### **5.2 Send Test Notification (if available)**
@@ -613,35 +774,62 @@ GET {{kong_url}}/api/notifications?user_id={{user_id}}
 
 # 🧪 **Complete Testing Workflow**
 
+## **Service Health Checks**
+
+Start with health checks to verify all services are running:
+
+### **System Health Verification**
+1. **User Service Health** → `GET {{kong_url}}/health/user`
+2. **Cinema Service Health** → `GET {{kong_url}}/health/cinema`
+3. **Booking Service Health** → `GET {{kong_url}}/health/booking`
+4. **Payment Service Health** → `GET {{kong_url}}/health/payment`
+5. **Notification Service Health** → `GET {{kong_url}}/health/notification`
+
+**Expected Response for all health checks:**
+```json
+{
+  "status": "UP",
+  "groups": ["liveness", "readiness"]
+}
+```
+
 ## **End-to-End Booking Flow**
 
 Follow this sequence to test the complete booking workflow:
 
 ### **Phase 1: User Setup**
-1. **Register User** → `POST /api/users`
-2. **Login User** → `POST /api/users/login` (save token)
-3. **Get Profile** → `GET /api/users/profile`
+6. **Register User** → `POST {{kong_url}}/api/v1/register`
+7. **Login User** → `POST {{kong_url}}/api/v1/login` (save token)
+8. **Get Profile** → `GET {{kong_url}}/api/v1/profile`
 
 ### **Phase 2: Browse Movies**
-4. **Get Cinemas** → `GET /api/v1/cinemas`
-5. **Get Movies** → `GET /api/v1/movies`
-6. **Search Movies** → `GET /api/v1/movies/search`
-7. **Get Showtimes** → `GET /api/v1/showtimes`
+9. **Get Cinemas** → `GET {{kong_url}}/api/v1/cinemas`
+10. **Get Cinema Details** → `GET {{kong_url}}/api/v1/cinemas/{id}`
+11. **Get Screens** → `GET {{kong_url}}/api/v1/cinemas/{id}/screens`
+12. **Get Movies** → `GET {{kong_url}}/api/v1/movies`
+13. **Search Movies** → `GET {{kong_url}}/api/v1/movies/search?title=Avengers`
+14. **Get Showtimes** → `GET {{kong_url}}/api/v1/showtimes`
+15. **Search Showtimes** → `GET {{kong_url}}/api/v1/showtimes/search?movieId={id}&date=2025-01-15`
 
 ### **Phase 3: Book Tickets**
-8. **Get Available Seats** → `GET /api/v1/showtimes/{id}/seats/available`
-9. **Lock Seats** → `POST /api/v1/showtimes/{id}/seats/lock`
-10. **Create Booking** → `POST /api/bookings` or GraphQL mutation
-11. **Get Booking Details** → `GET /api/bookings/{id}`
+16. **Get Available Seats** → `GET {{kong_url}}/api/v1/showtimes/{id}/seats/available`
+17. **Lock Seats** → `POST {{kong_url}}/api/v1/showtimes/{id}/seats/lock?userId={id}` (Body: `["A1", "A2"]`)
+18. **Verify Locked Status** → `GET {{kong_url}}/api/v1/showtimes/{id}/seats/locked?userId={id}`
+19. **Create Booking** → `POST {{kong_url}}/api/bookings` or GraphQL mutation
+20. **Get Booking Details** → `GET {{kong_url}}/api/bookings/{id}`
 
 ### **Phase 4: Process Payment**
-12. **Get Payment Methods** → `GET /api/payments/methods`
-13. **Process Payment** → `POST /api/payments/process`
-14. **Check Payment Status** → `GET /api/payments/status/{id}`
-15. **Update Booking Status** → `PUT /api/bookings/{id}/status`
+21. **Get Payment Methods** → `GET {{kong_url}}/api/payments/methods`
+22. **Process Payment** → `POST {{kong_url}}/api/payments/process`
+23. **Check Payment Status** → `GET {{kong_url}}/api/payments/status/{id}`
+24. **Update Booking Status** → `PUT {{kong_url}}/api/bookings/{id}/status`
 
-### **Phase 5: Notifications (Automatic)**
-16. Check notification logs in MongoDB or RabbitMQ management console
+### **Phase 5: Clean Up (Optional)**
+25. **Release Seats** → `POST {{kong_url}}/api/v1/showtimes/{id}/seats/release` (Body: `["A1", "A2"]`)
+26. **Cancel Booking** → `DELETE {{kong_url}}/api/bookings/{id}`
+
+### **Phase 6: Notifications (Automatic)**
+27. Check notification logs in MongoDB or RabbitMQ management console
 
 ---
 
@@ -719,28 +907,45 @@ GET {{kong_url}}/api/payments/health
 
 ```
 📁 Movie Ticket Booking System
-├── 📁 Environment Setup
-│   ├── Kong Status Check
-│   └── All Services Health Check
+├── 📁 0. System Health Checks
+│   ├── User Service Health
+│   ├── Cinema Service Health
+│   ├── Booking Service Health
+│   ├── Payment Service Health
+│   ├── Notification Service Health
+│   └── Kong Gateway Status
 ├── 📁 1. User Management
+│   ├── User Service Health
 │   ├── Register User
 │   ├── Login User
 │   ├── Get Profile
 │   ├── Update Profile
 │   └── Change Password
 ├── 📁 2. Cinema & Movies
+│   ├── Cinema Service Health
 │   ├── Get Cinemas
 │   ├── Create Cinema
+│   ├── Update Cinema
+│   ├── Delete Cinema
 │   ├── Get Movies
+│   ├── Search Movies
 │   ├── Create Movie
-│   └── Search Movies
-├── 📁 3. Showtimes & Seats
+│   ├── Update Movie
+│   ├── Delete Movie
+│   ├── Get Screens
+│   ├── Create Screen
+│   ├── Update Screen
+│   ├── Delete Screen
 │   ├── Get Showtimes
+│   ├── Get Showtime by ID
 │   ├── Create Showtime
+│   ├── Update Showtime
+│   ├── Delete Showtime
 │   ├── Get Available Seats
 │   ├── Lock Seats
 │   └── Release Seats
-├── 📁 4. Booking Management
+├── 📁 3. Booking Management
+│   ├── Booking Service Health
 │   ├── 📁 REST API
 │   │   ├── Create Booking
 │   │   ├── Get Bookings
@@ -751,16 +956,18 @@ GET {{kong_url}}/api/payments/health
 │       ├── Get Bookings (GraphQL)
 │       ├── Update Booking (GraphQL)
 │       └── Cancel Booking (GraphQL)
-├── 📁 5. Payment Processing
+├── 📁 4. Payment Processing
+│   ├── Payment Service Health
 │   ├── Get Payment Methods
 │   ├── Process Credit Card Payment
 │   ├── Process PayPal Payment
 │   ├── Get Payment Status
 │   └── Process Refund
-├── 📁 6. Notifications
+├── 📁 5. Notifications
+│   ├── Notification Service Health
 │   ├── Send Test Notification
 │   └── Get Notification History
-└── 📁 7. Error Testing
+└── 📁 6. Error Testing
     ├── Authentication Errors
     ├── Validation Errors
     └── Rate Limiting Tests
@@ -837,6 +1044,33 @@ pm.test("Kong headers present", function () {
 This comprehensive guide covers all API endpoints across all microservices in the movie ticket booking system. Use Kong Gateway as the single entry point for all requests, which provides:
 
 - ✅ **Unified Access Control**
+- ✅ **Rate Limiting & CORS**
+- ✅ **Service Health Monitoring**
+- ✅ **Declarative Configuration (DB-less mode)**
+- ✅ **Request Transformation for Health Checks**
+
+## **Kong Gateway Updates Applied**
+
+### **Configuration Mode**: 
+- **Changed from**: Database mode (PostgreSQL)
+- **Changed to**: DB-less mode (Declarative configuration)
+- **Benefit**: Faster startup, simpler deployment, version-controlled configuration
+
+### **Health Check Routes Added**:
+All services now have dedicated health check routes that map to their `/actuator/health` endpoints:
+
+| Kong Route | Service Health URL |
+|------------|-------------------|
+| `/health/user` | `http://user-service:8080/actuator/health` |
+| `/health/cinema` | `http://cinema-service:8002/actuator/health` |
+| `/health/booking` | `http://booking-service:8004/actuator/health` |
+| `/health/payment` | `http://payment-service:8003/actuator/health` |
+| `/health/notification` | `http://notification-service:8084/actuator/health` |
+
+### **Path Transformation**:
+Kong uses the `request-transformer` plugin to convert service-specific health check paths to the standard `/actuator/health` endpoint that Spring Boot services expect.
+
+**Remember**: Always start your testing workflow with the System Health Checks (Phase 0) to ensure all services are operational before proceeding with functional testing.
 - ✅ **Rate Limiting Protection**
 - ✅ **CORS Handling**
 - ✅ **Request/Response Logging**

@@ -52,11 +52,31 @@ routes:
       - https
     strip_path: true
 
+  # User Service Health Check
+  - name: user-health
+    service: user-service
+    paths:
+      - /health/user
+    methods:
+      - GET
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /actuator/health
+
   # Cinema Service Routes
   - name: cinema-routes
     service: cinema-service
     paths:
       - /api/v1/cinemas
+      - /api/v1/movies
+      - /api/v1/screens
+      - /api/v1/showtimes
     methods:
       - GET
       - POST
@@ -67,6 +87,23 @@ routes:
       - http
       - https
     strip_path: false
+
+  # Cinema Service Health Check
+  - name: cinema-health
+    service: cinema-service
+    paths:
+      - /health/cinema
+    methods:
+      - GET
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /actuator/health
 
   # Booking Service Routes
   - name: booking-routes
@@ -83,6 +120,23 @@ routes:
       - http
       - https
     strip_path: true
+
+  # Booking Service Health Check
+  - name: booking-health
+    service: booking-service
+    paths:
+      - /health/booking
+    methods:
+      - GET
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /actuator/health
 
   # Booking Service GraphQL
   - name: booking-graphql
@@ -114,6 +168,23 @@ routes:
       - https
     strip_path: true
 
+  # Payment Service Health Check
+  - name: payment-health
+    service: payment-service
+    paths:
+      - /health/payment
+    methods:
+      - GET
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /actuator/health
+
   # Notification Service Routes
   - name: notification-routes
     service: notification-service
@@ -129,6 +200,23 @@ routes:
       - http
       - https
     strip_path: true
+
+  # Notification Service Health Check
+  - name: notification-health
+    service: notification-service
+    paths:
+      - /health/notification
+    methods:
+      - GET
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /actuator/health
 
 plugins:
   # Global CORS Plugin
