@@ -2,12 +2,18 @@
 
 ## Overview
 
-The Payment Service is a FastAPI-based microservice that handles payment processing for movie ticket bookings. It integrates with RabbitMQ to publish payment events and supports various payment methods.
+The Payment Service is a FastAPI-based microservice that handles payment processing for movie ticket bookings. It integrates with RabbitMQ to publish payment events and MongoDB for transaction logging. The service supports multiple payment methods and provides comprehensive transaction management.
 
-## Base URL
+## Base URLs
 
+**Direct Service Access:**
 ```
 http://localhost:8003
+```
+
+**Kong Gateway Access (Recommended):**
+```
+http://localhost:8000/api/payments
 ```
 
 ## Authentication
@@ -22,13 +28,14 @@ Currently, the service operates without authentication. In production, implement
 
 Check if the payment service is running and healthy.
 
+**Kong Gateway Route:** `GET /health/payment`
+
 **Response:**
 
 ```json
 {
   "status": "healthy",
-  "service": "payment-service",
-  "timestamp": "2024-12-15T10:30:00Z"
+  "service": "payment-service"
 }
 ```
 
@@ -40,19 +47,21 @@ Check if the payment service is running and healthy.
 
 ### 2. Process Payment
 
-#### `POST /payment/process`
+#### `POST /payments`
 
 Process a payment for a movie ticket booking.
+
+**Kong Gateway Route:** `POST /api/payments`
 
 **Request Body:**
 
 ```json
 {
-  "user_id": "user_123",
   "booking_id": "BOOK-789012",
+  "user_id": "user_123",
   "amount": 25.5,
   "payment_method": "credit_card",
-  "card_details": {
+  "payment_details": {
     "card_number": "4111111111111111",
     "expiry_month": "12",
     "expiry_year": "2025",
@@ -66,144 +75,87 @@ Process a payment for a movie ticket booking.
 
 ```python
 class PaymentRequest(BaseModel):
-    user_id: str
     booking_id: str
+    user_id: str
     amount: float
-    payment_method: str  # "credit_card", "debit_card", "paypal", "stripe"
-    card_details: Optional[CardDetails] = None
-    paypal_details: Optional[PayPalDetails] = None
+    payment_method: PaymentMethod  # "credit_card", "debit_card", "digital_wallet", "net_banking"
+    payment_details: dict  # Card details, wallet info, etc.
 
-class CardDetails(BaseModel):
-    card_number: str
-    expiry_month: str
-    expiry_year: str
-    cvv: str
-    cardholder_name: str
-
-class PayPalDetails(BaseModel):
-    email: str
-    payment_id: str
+class PaymentMethod(str, Enum):
+    CREDIT_CARD = "credit_card"
+    DEBIT_CARD = "debit_card"
+    DIGITAL_WALLET = "digital_wallet"
+    NET_BANKING = "net_banking"
 ```
 
 **Success Response (200):**
 
 ```json
 {
-  "status": "success",
-  "transaction_id": "TXN-456789",
-  "booking_id": "BOOK-789012",
-  "amount": 25.5,
-  "payment_method": "credit_card",
-  "processed_at": "2024-12-15T10:30:45Z",
-  "message": "Payment processed successfully"
+  "success": true,
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+  "message": "Payment processed successfully",
+  "status": "success"
 }
 ```
 
-**Failure Response (400):**
+**Failure Response (200):**
 
 ```json
 {
-  "status": "failed",
-  "booking_id": "BOOK-789012",
-  "amount": 25.5,
-  "payment_method": "credit_card",
-  "error_code": "INSUFFICIENT_FUNDS",
-  "error_message": "Insufficient funds in account",
-  "processed_at": "2024-12-15T10:30:45Z"
+  "success": false,
+  "transaction_id": null,
+  "message": "Payment failed: Insufficient funds",
+  "status": "failed"
 }
 ```
 
 **Status Codes:**
 
-- `200 OK` - Payment processed successfully
-- `400 Bad Request` - Payment failed or invalid request
+- `200 OK` - Payment processed (check response.success for actual result)
 - `422 Unprocessable Entity` - Validation errors
 - `500 Internal Server Error` - Server error
 
 ---
 
-### 3. Refund Payment
+### 3. Get Transaction Details
 
-#### `POST /payment/refund`
+#### `GET /payments/{transaction_id}`
 
-Process a refund for a previous payment.
+Get details of a specific transaction by ID.
 
-**Request Body:**
-
-```json
-{
-  "booking_id": "BOOK-789012",
-  "original_transaction_id": "TXN-456789",
-  "refund_amount": 25.5,
-  "reason": "Customer cancellation",
-  "user_id": "user_123"
-}
-```
-
-**Request Schema:**
-
-```python
-class RefundRequest(BaseModel):
-    booking_id: str
-    original_transaction_id: str
-    refund_amount: float
-    reason: str
-    user_id: str
-```
-
-**Success Response (200):**
-
-```json
-{
-  "status": "success",
-  "refund_transaction_id": "REF-123456",
-  "original_transaction_id": "TXN-456789",
-  "booking_id": "BOOK-789012",
-  "refund_amount": 25.5,
-  "processed_at": "2024-12-15T10:35:00Z",
-  "message": "Refund processed successfully"
-}
-```
-
-**Status Codes:**
-
-- `200 OK` - Refund processed successfully
-- `400 Bad Request` - Invalid refund request
-- `404 Not Found` - Original transaction not found
-- `422 Unprocessable Entity` - Validation errors
-
----
-
-### 4. Payment Status
-
-#### `GET /payment/status/{transaction_id}`
-
-Get the status of a payment transaction.
+**Kong Gateway Route:** `GET /api/payments/{transaction_id}`
 
 **Path Parameters:**
 
-- `transaction_id` (string) - The transaction ID to check
+- `transaction_id` (string) - The transaction ID to retrieve
 
 **Response:**
 
 ```json
 {
-  "transaction_id": "TXN-456789",
-  "status": "completed",
-  "booking_id": "BOOK-789012",
+  "_id": "675cdb0d6674d8c6d5c8f2e3",
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+  "booking_id": "KONG-BOOK-1734353677",
   "amount": 25.5,
   "payment_method": "credit_card",
-  "created_at": "2024-12-15T10:30:45Z",
-  "processed_at": "2024-12-15T10:30:47Z"
+  "status": "success",
+  "payment_details": {
+    "card_number": "****-****-****-1111",
+    "expiry_month": "12",
+    "expiry_year": "2025",
+    "cardholder_name": "John Doe"
+  },
+  "created_at": "2024-12-16T13:21:17.056000",
+  "updated_at": "2024-12-16T13:21:17.056000",
+  "gateway_response": {
+    "transaction_reference": "txn_abc123def456",
+    "gateway_transaction_id": "gw_78901234",
+    "auth_code": "AUTH789",
+    "processor_response": "Approved"
+  }
 }
 ```
-
-**Status Values:**
-
-- `pending` - Payment is being processed
-- `completed` - Payment successful
-- `failed` - Payment failed
-- `refunded` - Payment has been refunded
 
 **Status Codes:**
 
@@ -212,42 +164,132 @@ Get the status of a payment transaction.
 
 ---
 
-### 5. Payment Methods
+### 4. Get Booking Transactions
 
-#### `GET /payment/methods`
+#### `GET /payments/booking/{booking_id}`
 
-Get available payment methods.
+Get all transactions associated with a specific booking.
+
+**Kong Gateway Route:** `GET /api/payments/booking/{booking_id}`
+
+**Path Parameters:**
+
+- `booking_id` (string) - The booking ID to retrieve transactions for
 
 **Response:**
 
 ```json
+[
+  {
+    "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+    "booking_id": "BOOK-789012",
+    "amount": 25.5,
+    "payment_method": "credit_card",
+    "status": "success",
+    "created_at": "2024-12-16T13:21:17.056000"
+  }
+]
+```
+
+**Status Codes:**
+
+- `200 OK` - Transactions retrieved (empty array if none found)
+
+---
+
+### 5. Process Refund
+
+#### `POST /refunds`
+
+Process a refund for a previous successful transaction.
+
+**Kong Gateway Route:** `POST /api/refunds`
+
+**Query Parameters:**
+
+- `transaction_id` (required) - Original transaction ID to refund
+- `reason` (required) - Reason for the refund
+
+**Example Request:**
+
+```bash
+POST /refunds?transaction_id=08d50720-08ba-4876-9d98-002f6b25b07e&reason=Customer%20cancellation
+```
+
+**Success Response (200):**
+
+```json
 {
-  "payment_methods": [
-    {
-      "id": "credit_card",
-      "name": "Credit Card",
-      "description": "Visa, MasterCard, American Express",
-      "enabled": true
-    },
-    {
-      "id": "debit_card",
-      "name": "Debit Card",
-      "description": "Bank debit cards",
-      "enabled": true
-    },
-    {
-      "id": "paypal",
-      "name": "PayPal",
-      "description": "Pay with your PayPal account",
-      "enabled": true
-    },
-    {
-      "id": "stripe",
-      "name": "Stripe",
-      "description": "Secure online payments",
-      "enabled": false
-    }
-  ]
+  "success": true,
+  "refund_transaction_id": "def456gh-ijkl-9012-mnop-345678901234",
+  "message": "Refund processed successfully"
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "detail": "Can only refund successful transactions"
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "detail": "Original transaction not found"
+}
+```
+
+**Status Codes:**
+
+- `200 OK` - Refund processed successfully
+- `400 Bad Request` - Invalid refund request (e.g., transaction not successful)
+- `404 Not Found` - Original transaction not found
+- `422 Unprocessable Entity` - Validation errors
+
+---
+
+## Payment Methods
+
+The service supports the following payment methods:
+
+| Method | Enum Value | Status | Description |
+|--------|------------|--------|-------------|
+| Credit Card | `credit_card` | ✅ Active | Visa, MasterCard, American Express |
+| Debit Card | `debit_card` | ✅ Active | Bank debit cards |
+| Digital Wallet | `digital_wallet` | ✅ Active | PayPal, Apple Pay, Google Pay |
+| Net Banking | `net_banking` | ✅ Active | Direct bank transfers |
+
+### Payment Details Structure
+
+**Credit Card:**
+```json
+{
+  "card_number": "4111111111111111",
+  "expiry_month": "12",
+  "expiry_year": "2025",
+  "cvv": "123",
+  "cardholder_name": "John Doe"
+}
+```
+
+**Digital Wallet:**
+```json
+{
+  "wallet_type": "paypal",
+  "wallet_id": "user@example.com",
+  "payment_id": "PAYID-123456789"
+}
+```
+
+**Net Banking:**
+```json
+{
+  "bank_code": "HDFC0001234",
+  "account_number": "1234567890",
+  "ifsc_code": "HDFC0001234"
 }
 ```
 
@@ -264,7 +306,7 @@ The Payment Service publishes events to RabbitMQ for other services to consume.
 - **Routing Keys:**
   - `payment.success` - Payment successful
   - `payment.failed` - Payment failed
-  - `payment.refund` - Refund processed
+  - `payment.refunded` - Refund processed
 
 ### Event Schemas
 
@@ -274,13 +316,17 @@ The Payment Service publishes events to RabbitMQ for other services to consume.
 {
   "event_id": "evt_payment_001",
   "event_type": "payment.success",
-  "user_id": "user_123",
-  "user_email": "user@example.com",
   "booking_id": "BOOK-789012",
-  "transaction_id": "TXN-456789",
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
   "amount": 25.5,
   "payment_method": "credit_card",
-  "timestamp": "2024-12-15T10:30:45Z"
+  "gateway_response": {
+    "transaction_reference": "txn_abc123def456",
+    "gateway_transaction_id": "gw_78901234",
+    "auth_code": "AUTH789"
+  },
+  "user_id": "user_123",
+  "timestamp": "2024-12-16T13:21:17Z"
 }
 ```
 
@@ -290,14 +336,17 @@ The Payment Service publishes events to RabbitMQ for other services to consume.
 {
   "event_id": "evt_payment_002",
   "event_type": "payment.failed",
-  "user_id": "user_123",
-  "user_email": "user@example.com",
   "booking_id": "BOOK-789012",
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
   "amount": 25.5,
   "payment_method": "credit_card",
   "failure_reason": "Insufficient funds",
-  "error_code": "INSUFFICIENT_FUNDS",
-  "timestamp": "2024-12-15T10:30:45Z"
+  "gateway_response": {
+    "error_code": "INSUFFICIENT_FUNDS",
+    "error_message": "Not enough balance"
+  },
+  "user_id": "user_123",
+  "timestamp": "2024-12-16T13:21:17Z"
 }
 ```
 
@@ -306,15 +355,12 @@ The Payment Service publishes events to RabbitMQ for other services to consume.
 ```json
 {
   "event_id": "evt_payment_003",
-  "event_type": "payment.refund",
-  "user_id": "user_123",
-  "user_email": "user@example.com",
+  "event_type": "payment.refunded",
   "booking_id": "BOOK-789012",
-  "original_transaction_id": "TXN-456789",
-  "refund_transaction_id": "REF-123456",
+  "original_transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+  "refund_transaction_id": "def456gh-ijkl-9012-mnop-345678901234",
   "refund_amount": 25.5,
-  "reason": "Customer cancellation",
-  "timestamp": "2024-12-15T10:35:00Z"
+  "reason": "Customer cancellation"
 }
 ```
 
@@ -326,58 +372,55 @@ The Payment Service publishes events to RabbitMQ for other services to consume.
 
 ```json
 {
-  "error": {
-    "code": "PAYMENT_FAILED",
-    "message": "Payment could not be processed",
-    "details": {
-      "reason": "Insufficient funds",
-      "transaction_id": null,
-      "retry_possible": true
-    }
-  },
-  "timestamp": "2024-12-15T10:30:45Z"
+  "detail": "Original transaction not found"
 }
 ```
 
-### Common Error Codes
+### Common Error Scenarios
 
-| Code                    | Description                   | HTTP Status |
-| ----------------------- | ----------------------------- | ----------- |
-| `INVALID_CARD`          | Invalid card details          | 400         |
-| `INSUFFICIENT_FUNDS`    | Not enough funds              | 400         |
-| `CARD_EXPIRED`          | Card has expired              | 400         |
-| `CARD_DECLINED`         | Card declined by bank         | 400         |
-| `PAYMENT_GATEWAY_ERROR` | Gateway service error         | 502         |
-| `DUPLICATE_TRANSACTION` | Transaction already processed | 409         |
-| `INVALID_AMOUNT`        | Invalid payment amount        | 400         |
-| `REFUND_NOT_ALLOWED`    | Refund not permitted          | 400         |
+| Scenario | HTTP Status | Response |
+|----------|-------------|----------|
+| Invalid payment data | 422 | Validation error details |
+| Transaction not found | 404 | `{"detail": "Transaction not found"}` |
+| Refund not allowed | 400 | `{"detail": "Can only refund successful transactions"}` |
+| Payment processing error | 200 | `{"success": false, "message": "Payment failed: ..."}` |
+| Service unavailable | 500 | `{"detail": "Internal server error"}` |
+
+### Payment Simulation Logic
+
+The service simulates different payment outcomes based on amount:
+
+- **Amount ending in 0**: Payment succeeds
+- **Amount ending in 1**: Payment fails (insufficient funds)
+- **Amount ending in 2**: Payment fails (card declined)
+- **Amount ending in 3**: Payment fails (card expired)
+- **Other amounts**: Random success/failure
 
 ---
 
 ## Rate Limiting
 
-- **Rate Limit:** 100 requests per minute per IP
-- **Burst Limit:** 20 requests per 10 seconds
+- **Kong Gateway**: 1000 requests per minute (configured in kong.yml)
+- **CORS**: Enabled for all origins
 - **Headers:**
-  - `X-RateLimit-Limit`
-  - `X-RateLimit-Remaining`
-  - `X-RateLimit-Reset`
+  - `X-Kong-Upstream-Latency`
+  - `X-Kong-Proxy-Latency`
 
 ---
 
 ## Examples
 
-### Process Credit Card Payment
+### Process Credit Card Payment (via Kong Gateway)
 
 ```bash
-curl -X POST http://localhost:8003/payment/process \
+curl -X POST http://localhost:8000/api/payments \
   -H "Content-Type: application/json" \
   -d '{
-    "user_id": "user_123",
     "booking_id": "BOOK-789012",
+    "user_id": "user_123",
     "amount": 25.50,
     "payment_method": "credit_card",
-    "card_details": {
+    "payment_details": {
       "card_number": "4111111111111111",
       "expiry_month": "12",
       "expiry_year": "2025",
@@ -387,24 +430,44 @@ curl -X POST http://localhost:8003/payment/process \
   }'
 ```
 
-### Process Refund
+### Process Digital Wallet Payment
 
 ```bash
-curl -X POST http://localhost:8003/payment/refund \
+curl -X POST http://localhost:8000/api/payments \
   -H "Content-Type: application/json" \
   -d '{
-    "booking_id": "BOOK-789012",
-    "original_transaction_id": "TXN-456789",
-    "refund_amount": 25.50,
-    "reason": "Customer cancellation",
-    "user_id": "user_123"
+    "booking_id": "BOOK-789013",
+    "user_id": "user_123",
+    "amount": 30.00,
+    "payment_method": "digital_wallet",
+    "payment_details": {
+      "wallet_type": "paypal",
+      "wallet_id": "user@example.com",
+      "payment_id": "PAYID-123456789"
+    }
   }'
 ```
 
-### Check Payment Status
+### Get Transaction Details
 
 ```bash
-curl http://localhost:8003/payment/status/TXN-456789
+curl http://localhost:8000/api/payments/08d50720-08ba-4876-9d98-002f6b25b07e
+```
+
+### Process Refund
+
+```bash
+curl -X POST "http://localhost:8000/api/refunds?transaction_id=08d50720-08ba-4876-9d98-002f6b25b07e&reason=Customer%20cancellation"
+```
+
+### Health Check
+
+```bash
+# Via Kong Gateway
+curl http://localhost:8000/health/payment
+
+# Direct service
+curl http://localhost:8003/health
 ```
 
 ---
@@ -414,28 +477,47 @@ curl http://localhost:8003/payment/status/TXN-456789
 ### Test Endpoints
 
 ```bash
-# Health check
+# Health check (Kong Gateway)
+curl http://localhost:8000/health/payment
+
+# Health check (Direct)
 curl http://localhost:8003/health
 
-# Get payment methods
-curl http://localhost:8003/payment/methods
-
-# Test payment (will fail with test data)
-curl -X POST http://localhost:8003/payment/process \
+# Test payment processing (will succeed with amount ending in 0)
+curl -X POST http://localhost:8000/api/payments \
   -H "Content-Type: application/json" \
-  -d '{"user_id":"test","booking_id":"TEST-123","amount":10.00,"payment_method":"credit_card"}'
+  -d '{
+    "booking_id": "TEST-123", 
+    "user_id": "test-user", 
+    "amount": 10.00, 
+    "payment_method": "credit_card",
+    "payment_details": {
+      "card_number": "4111111111111111",
+      "expiry_month": "12", 
+      "expiry_year": "2025",
+      "cvv": "123",
+      "cardholder_name": "Test User"
+    }
+  }'
 ```
 
-### Test Cards
+### Test Cards for Simulation
 
-For testing purposes, you can use these test card numbers:
+| Card Number | Expected Result |
+|-------------|----------------|
+| 4111111111111111 | Success (if amount ends in 0) |
+| 4000000000000002 | Declined (if amount ends in 2) |
+| 5555555555554444 | Success (if amount ends in 0) |
 
-| Card Type  | Number           | Result   |
-| ---------- | ---------------- | -------- |
-| Visa       | 4111111111111111 | Success  |
-| Visa       | 4000000000000002 | Declined |
-| MasterCard | 5555555555554444 | Success  |
-| Amex       | 378282246310005  | Success  |
+### Test Amounts
+
+| Amount | Expected Result |
+|--------|----------------|
+| 10.00 | Payment Success |
+| 15.01 | Payment Failed (Insufficient funds) |
+| 20.02 | Payment Failed (Card declined) |
+| 25.03 | Payment Failed (Card expired) |
+| 30.05 | Random success/failure |
 
 ---
 
@@ -479,20 +561,32 @@ For testing purposes, you can use these test card numbers:
 ```env
 # Payment Service Configuration
 PAYMENT_SERVICE_PORT=8003
-PAYMENT_GATEWAY_URL=https://api.paymentgateway.com
-PAYMENT_GATEWAY_API_KEY=your_api_key
+MONGODB_URI=mongodb://localhost:27017
 
-# RabbitMQ Configuration
+# RabbitMQ Configuration (Optional)
 RABBITMQ_URL=amqp://localhost:5672/
 RABBITMQ_EXCHANGE=movie_app_events
 
-# Database Configuration (if used)
-DATABASE_URL=postgresql://user:pass@localhost:5432/payments
-
-# Security
-JWT_SECRET_KEY=your_jwt_secret
-ENCRYPTION_KEY=your_encryption_key
+# Logging
+LOG_LEVEL=INFO
 ```
+
+### Kong Gateway Integration
+
+The service is fully integrated with Kong Gateway:
+
+- **Service URL**: `http://payment-service:8003/payments` (with `/payments` path)
+- **Health Check URL**: `http://payment-service:8003` (separate service)
+- **Strip Path**: Enabled for payment routes
+- **Rate Limiting**: 1000 requests/minute
+- **CORS**: Enabled
+
+### MongoDB Collections
+
+The service uses the following MongoDB collections:
+
+- **transaction_logs**: Stores all payment transactions
+  - Fields: `transaction_id`, `booking_id`, `amount`, `payment_method`, `status`, `payment_details`, `created_at`, `updated_at`, `gateway_response`, `failure_reason`
 
 ---
 
@@ -510,17 +604,22 @@ EXPOSE 8003
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
 ```
 
-### Docker Compose
+### Docker Compose Integration
+
+The service is integrated into the main docker-compose.yml:
 
 ```yaml
-version: "3.8"
-services:
-  payment-service:
-    build: .
-    ports:
-      - "8003:8003"
-    environment:
-      - RABBITMQ_URL=amqp://rabbitmq:5672/
-    depends_on:
-      - rabbitmq
+payment-service:
+  build: ./services/payment-service
+  container_name: payment-service
+  ports:
+    - "8003:8003"
+  environment:
+    - MONGODB_URI=mongodb://mongodb:27017
+    - RABBITMQ_URL=amqp://rabbitmq:5672/
+  depends_on:
+    - mongodb
+    - rabbitmq
+  networks:
+    - movie-booking-network
 ```

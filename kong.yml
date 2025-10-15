@@ -25,9 +25,16 @@ services:
 
   # Payment Service
   - name: payment-service
+    url: http://payment-service:8003/payments
+    tags:
+      - payment
+
+  # Payment Service Health (separate service for health checks)
+  - name: payment-health-service
     url: http://payment-service:8003
     tags:
       - payment
+      - health
 
   # Notification Service
   - name: notification-service
@@ -168,9 +175,27 @@ routes:
       - https
     strip_path: true
 
+  # Payment Service Refund Routes
+  - name: payment-refund-routes
+    service: payment-health-service
+    paths:
+      - /api/refunds
+    methods:
+      - POST
+      - OPTIONS
+    protocols:
+      - http
+      - https
+    strip_path: false
+    plugins:
+      - name: request-transformer
+        config:
+          replace:
+            uri: /refunds
+
   # Payment Service Health Check
   - name: payment-health
-    service: payment-service
+    service: payment-health-service
     paths:
       - /health/payment
     methods:
@@ -183,7 +208,7 @@ routes:
       - name: request-transformer
         config:
           replace:
-            uri: /actuator/health
+            uri: /health
 
   # Notification Service Routes
   - name: notification-routes

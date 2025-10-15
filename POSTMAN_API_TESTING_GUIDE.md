@@ -32,7 +32,7 @@ This comprehensive guide covers testing all microservice APIs through Kong Gatew
 | User Service | localhost:8080 | `/api/users/*`, `/health/user` | Go + Gin | MongoDB |
 | Cinema Service | localhost:8002 | `/api/v1/cinemas/*`, `/api/v1/movies/*`, `/api/v1/screens/*`, `/api/v1/showtimes/*`, `/health/cinema` | Java + Spring Boot | PostgreSQL |
 | Booking Service | localhost:8004 | `/api/bookings/*`, `/graphql`, `/health/booking` | Python + FastAPI + GraphQL | MongoDB |
-| Payment Service | localhost:8003 | `/api/payments/*`, `/health/payment` | Python + FastAPI | MongoDB |
+| Payment Service | localhost:8003 | `/api/payments/*`, `/api/refunds`, `/health/payment` | Python + FastAPI | MongoDB |
 | Notification Service | localhost:8084 | `/api/notifications/*`, `/health/notification` | Python Worker | MongoDB + Redis |
 
 ---
@@ -709,27 +709,22 @@ GET {{kong_url}}/health/payment
 **Expected Response:**
 ```json
 {
-  "status": "UP",
-  "groups": ["liveness", "readiness"]
+  "status": "healthy",
+  "service": "payment-service"
 }
 ```
 
-### **4.2 Get Payment Methods**
+### **4.2 Process Credit Card Payment**
 ```http
-GET {{kong_url}}/api/payments/methods
-```
-
-### **4.3 Process Credit Card Payment**
-```http
-POST {{kong_url}}/api/payments/process
+POST {{kong_url}}/api/payments
 Content-Type: application/json
 
 {
-  "user_id": "{{user_id}}",
   "booking_id": "{{booking_id}}",
+  "user_id": "{{user_id}}",
   "amount": 30.00,
   "payment_method": "credit_card",
-  "card_details": {
+  "payment_details": {
     "card_number": "4111111111111111",
     "expiry_month": "12",
     "expiry_year": "2025",
@@ -739,49 +734,196 @@ Content-Type: application/json
 }
 ```
 
+**Expected Response:**
+```json
+{
+  "success": true,
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+  "message": "Payment processed successfully",
+  "status": "success"
+}
+```
+
 **Post-response Script:**
 ```javascript
-// Save transaction ID
+// Save transaction ID for future requests
 if (pm.response.json().transaction_id) {
     pm.environment.set("transaction_id", pm.response.json().transaction_id);
 }
 ```
 
-### **4.4 Process PayPal Payment**
+### **4.3 Process Digital Wallet Payment**
 ```http
-POST {{kong_url}}/api/payments/process
+POST {{kong_url}}/api/payments
 Content-Type: application/json
 
 {
-  "user_id": "{{user_id}}",
   "booking_id": "{{booking_id}}",
-  "amount": 30.00,
-  "payment_method": "paypal",
-  "paypal_details": {
-    "email": "john.doe@example.com",
+  "user_id": "{{user_id}}",
+  "amount": 25.00,
+  "payment_method": "digital_wallet",
+  "payment_details": {
+    "wallet_type": "paypal",
+    "wallet_id": "john.doe@example.com",
     "payment_id": "PAYID-123456789"
   }
 }
 ```
 
-### **4.5 Get Payment Status**
+### **4.4 Process Debit Card Payment**
 ```http
-GET {{kong_url}}/api/payments/status/{{transaction_id}}
-```
-
-### **4.6 Process Refund**
-```http
-POST {{kong_url}}/api/payments/refund
+POST {{kong_url}}/api/payments
 Content-Type: application/json
 
 {
   "booking_id": "{{booking_id}}",
-  "original_transaction_id": "{{transaction_id}}",
-  "refund_amount": 30.00,
-  "reason": "Customer cancellation",
-  "user_id": "{{user_id}}"
+  "user_id": "{{user_id}}",
+  "amount": 20.00,
+  "payment_method": "debit_card",
+  "payment_details": {
+    "card_number": "5555555555554444",
+    "expiry_month": "10",
+    "expiry_year": "2026",
+    "cvv": "456",
+    "cardholder_name": "John Doe"
+  }
 }
 ```
+
+### **4.5 Process Net Banking Payment**
+```http
+POST {{kong_url}}/api/payments
+Content-Type: application/json
+
+{
+  "booking_id": "{{booking_id}}",
+  "user_id": "{{user_id}}",
+  "amount": 35.00,
+  "payment_method": "net_banking",
+  "payment_details": {
+    "bank_code": "HDFC0001234",
+    "account_number": "1234567890",
+    "ifsc_code": "HDFC0001234"
+  }
+}
+```
+
+### **4.6 Get Transaction Details**
+```http
+GET {{kong_url}}/api/payments/{{transaction_id}}
+```
+
+**Expected Response:**
+```json
+{
+  "_id": "675cdb0d6674d8c6d5c8f2e3",
+  "transaction_id": "08d50720-08ba-4876-9d98-002f6b25b07e",
+  "booking_id": "BOOK-789012",
+  "amount": 25.5,
+  "payment_method": "credit_card",
+  "status": "success",
+  "payment_details": {
+    "card_number": "****-****-****-1111",
+    "expiry_month": "12",
+    "expiry_year": "2025",
+    "cardholder_name": "John Doe"
+  },
+  "created_at": "2024-12-16T13:21:17.056000",
+  "updated_at": "2024-12-16T13:21:17.056000",
+  "gateway_response": {
+    "transaction_reference": "txn_abc123def456",
+    "gateway_transaction_id": "gw_78901234",
+    "auth_code": "AUTH789",
+    "processor_response": "Approved"
+  }
+}
+```
+
+### **4.7 Get Booking Transactions**
+```http
+GET {{kong_url}}/api/payments/booking/{{booking_id}}
+```
+
+### **4.8 Process Refund**
+```http
+POST {{kong_url}}/api/refunds?transaction_id={{transaction_id}}&reason=Customer%20cancellation
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "refund_transaction_id": "def456gh-ijkl-9012-mnop-345678901234",
+  "message": "Refund processed successfully"
+}
+```
+
+### **4.9 Test Failed Payment (Amount ending in 1)**
+```http
+POST {{kong_url}}/api/payments
+Content-Type: application/json
+
+{
+  "booking_id": "{{booking_id}}",
+  "user_id": "{{user_id}}",
+  "amount": 15.01,
+  "payment_method": "credit_card",
+  "payment_details": {
+    "card_number": "4111111111111111",
+    "expiry_month": "12",
+    "expiry_year": "2025",
+    "cvv": "123",
+    "cardholder_name": "John Doe"
+  }
+}
+```
+
+**Expected Response:**
+```json
+{
+  "success": false,
+  "transaction_id": null,
+  "message": "Payment failed: Insufficient funds",
+  "status": "failed"
+}
+```
+
+### **✅ Payment Service Implementation Status**
+
+**✅ Fully Implemented and Tested Endpoints:**
+- ✅ Health check via `/health/payment` (Kong Gateway)
+- ✅ Payment processing for all 4 payment methods:
+  - ✅ Credit Card (`credit_card`)
+  - ✅ Debit Card (`debit_card`) 
+  - ✅ Digital Wallet (`digital_wallet`)
+  - ✅ Net Banking (`net_banking`)
+- ✅ Transaction details retrieval by ID
+- ✅ Transaction history by booking ID
+- ✅ Refund processing with query parameters
+- ✅ MongoDB transaction logging
+- ✅ RabbitMQ event publishing (when available)
+- ✅ Payment simulation with amount-based outcomes
+- ✅ Sensitive data sanitization (card numbers masked)
+
+**✅ Kong Gateway Integration:**
+- ✅ Route: `/api/payments` → `http://payment-service:8003/payments`
+- ✅ Health Route: `/health/payment` → `http://payment-service:8003/health`
+- ✅ Refund Route: `/api/refunds` → `http://payment-service:8003/refunds`
+- ✅ Path stripping and request transformation working correctly
+- ✅ All endpoints accessible via Kong Gateway on port 8000
+
+**✅ Testing Features:**
+- ✅ Payment simulation based on amount (ending digit determines outcome)
+- ✅ Error handling for validation and missing transactions
+- ✅ Transaction logging in MongoDB with complete details
+- ✅ Event publishing for payment success/failure/refund
+
+**Important Notes:**
+- Payment simulation: Amount ending in 0 = success, 1 = insufficient funds, 2 = declined, 3 = expired
+- Card numbers are automatically masked in stored transaction logs
+- Refund endpoint uses query parameters (not request body)
+- All payment methods use the same `payment_details` structure with different fields
+- MongoDB stores complete transaction history including gateway responses
 
 ---
 
@@ -872,17 +1014,21 @@ Follow this sequence to test the complete booking workflow:
 20. **Get Booking Details** → `GET {{kong_url}}/api/bookings/{id}`
 
 ### **Phase 4: Process Payment**
-21. **Get Payment Methods** → `GET {{kong_url}}/api/payments/methods`
-22. **Process Payment** → `POST {{kong_url}}/api/payments/process`
-23. **Check Payment Status** → `GET {{kong_url}}/api/payments/status/{id}`
+21. **Process Payment** → `POST {{kong_url}}/api/payments`
+22. **Get Transaction Details** → `GET {{kong_url}}/api/payments/{transaction_id}`
+23. **Get Booking Transactions** → `GET {{kong_url}}/api/payments/booking/{booking_id}`
 24. **Update Booking Status** → `PUT {{kong_url}}/api/bookings/{id}/status`
 
-### **Phase 5: Clean Up (Optional)**
-25. **Release Seats** → `POST {{kong_url}}/api/v1/showtimes/{id}/seats/release` (Body: `["A1", "A2"]`)
-26. **Cancel Booking** → `DELETE {{kong_url}}/api/bookings/{id}`
+### **Phase 5: Process Refund (Optional)**
+25. **Process Refund** → `POST {{kong_url}}/api/refunds?transaction_id={id}&reason=Customer%20cancellation`
+26. **Verify Refund Transaction** → `GET {{kong_url}}/api/payments/{refund_transaction_id}`
 
-### **Phase 6: Notifications (Automatic)**
-27. Check notification logs in MongoDB or RabbitMQ management console
+### **Phase 6: Clean Up (Optional)**
+27. **Release Seats** → `POST {{kong_url}}/api/v1/showtimes/{id}/seats/release` (Body: `["A1", "A2"]`)
+28. **Cancel Booking** → `DELETE {{kong_url}}/api/bookings/{id}`
+
+### **Phase 7: Notifications (Automatic)**
+29. Check notification logs in MongoDB or RabbitMQ management console
 
 ---
 
@@ -907,10 +1053,21 @@ POST {{kong_url}}/api/users
   "password": "short"
 }
 
-# Insufficient payment amount
-POST {{kong_url}}/api/payments/process
+# Invalid payment method
+POST {{kong_url}}/api/payments
 {
-  "amount": -10.00
+  "booking_id": "invalid",
+  "user_id": "test",
+  "amount": -10.00,
+  "payment_method": "invalid_method",
+  "payment_details": {}
+}
+
+# Missing required payment fields
+POST {{kong_url}}/api/payments
+{
+  "booking_id": "test",
+  "amount": 15.00
 }
 ```
 
@@ -946,10 +1103,11 @@ GET http://localhost:8001/status
 
 ## **Health Check All Services**
 ```http
-GET {{kong_url}}/health
-GET {{kong_url}}/actuator/health
-GET {{kong_url}}/api/bookings/health
-GET {{kong_url}}/api/payments/health
+GET {{kong_url}}/health/user
+GET {{kong_url}}/health/cinema
+GET {{kong_url}}/health/booking
+GET {{kong_url}}/health/payment
+GET {{kong_url}}/health/notification
 ```
 
 ---
