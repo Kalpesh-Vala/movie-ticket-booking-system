@@ -66,6 +66,123 @@ graph TB
     class RabbitMQ messagebroker
 ```
 
+## 🚀 DevOps & DevSecOps Architecture
+
+```mermaid
+graph TB
+    %% Development Phase
+    Developer[Developer] -->|Git Push| GitHub[GitHub Repository]
+    
+    %% CI/CD Pipeline
+    GitHub -->|Webhook Trigger| Jenkins[Jenkins CI/CD Server]
+    
+    subgraph "CI Pipeline - Jenkins"
+        Jenkins -->|1. Checkout Code| CodeAnalysis[Static Code Analysis<br/>SonarQube]
+        CodeAnalysis -->|2. Security Scan| SecurityScanning{Security Scanning}
+        SecurityScanning -->|SAST| Snyk[Snyk - Dependency Scan]
+        SecurityScanning -->|Secret Detection| GitGuardian[GitGuardian/Gitleaks]
+        SecurityScanning -->|Code Quality| SonarQube[SonarQube Quality Gates]
+        
+        SecurityScanning -->|3. Build & Test| BuildStage[Build & Unit Tests]
+        BuildStage -->|Go Tests| GoTest[go test]
+        BuildStage -->|Java Tests| MavenTest[mvn test]
+        BuildStage -->|Python Tests| PytestTest[pytest]
+        
+        BuildStage -->|4. Container Build| DockerBuild[Docker Build<br/>Multi-stage Builds]
+        DockerBuild -->|5. Image Scan| TrivyScan[Trivy Container Scan<br/>CVE Detection]
+        TrivyScan -->|6. Push Images| DockerRegistry[Container Registry<br/>Docker Hub/ECR/ACR]
+    end
+    
+    %% CD Pipeline
+    DockerRegistry -->|7. Deploy Trigger| ArgoCD[ArgoCD<br/>GitOps Deployment]
+    
+    subgraph "Kubernetes Cluster"
+        ArgoCD -->|Deploy Manifests| K8sAPI[Kubernetes API Server]
+        
+        K8sAPI -->|Deploy| Ingress[NGINX Ingress Controller<br/>SSL/TLS Termination]
+        
+        Ingress -->|Route Traffic| KongGW[Kong Gateway<br/>API Gateway + Security]
+        
+        subgraph "Security Layer - Kong DevSecOps"
+            KongGW -->|JWT Validation| JWTPlugin[JWT Plugin]
+            KongGW -->|Rate Limiting| RateLimitPlugin[Rate Limiting Plugin]
+            KongGW -->|CORS| CORSPlugin[CORS Plugin]
+            KongGW -->|Request Validation| RequestValidation[Request Validator Plugin]
+            KongGW -->|Bot Detection| BotDetection[Bot Detection Plugin]
+            KongGW -->|IP Restriction| IPRestriction[IP Restriction Plugin]
+            KongGW -->|OAuth2| OAuth2Plugin[OAuth2 Plugin]
+            KongGW -->|Request Transformer| TransformerPlugin[Request/Response Transformer]
+        end
+        
+        KongGW -->|Forward| MicroservicesPods[Microservices Pods]
+        
+        subgraph "Microservices Deployment"
+            MicroservicesPods -->|HPA| UserPods[User Service Pods<br/>Horizontal Pod Autoscaler]
+            MicroservicesPods -->|HPA| CinemaPods[Cinema Service Pods<br/>Horizontal Pod Autoscaler]
+            MicroservicesPods -->|HPA| BookingPods[Booking Service Pods<br/>Horizontal Pod Autoscaler]
+            MicroservicesPods -->|HPA| PaymentPods[Payment Service Pods<br/>Horizontal Pod Autoscaler]
+            MicroservicesPods -->|StatefulSet| NotificationPods[Notification Service<br/>StatefulSet]
+        end
+        
+        subgraph "Data Layer"
+            UserPods -->|StatefulSet| MongoDBStateful[MongoDB StatefulSet<br/>Persistent Volumes]
+            CinemaPods -->|StatefulSet| PostgresStateful[PostgreSQL StatefulSet<br/>Persistent Volumes]
+            BookingPods --> MongoDBStateful
+            PaymentPods --> MongoDBStateful
+            NotificationPods -->|StatefulSet| RedisStateful[Redis StatefulSet<br/>Persistent Volumes]
+            NotificationPods --> MongoDBStateful
+            NotificationPods -->|StatefulSet| RabbitMQStateful[RabbitMQ StatefulSet<br/>Persistent Volumes]
+        end
+    end
+    
+    %% Monitoring & Observability
+    subgraph "Monitoring Stack"
+        MicroservicesPods -->|Metrics| Prometheus[Prometheus<br/>Metrics Collection]
+        Prometheus -->|Visualize| Grafana[Grafana Dashboards<br/>Alerts]
+        MicroservicesPods -->|Logs| Loki[Loki<br/>Log Aggregation]
+        Loki -->|Query| Grafana
+        MicroservicesPods -->|Traces| Jaeger[Jaeger<br/>Distributed Tracing]
+        KongGW -->|API Metrics| Prometheus
+    end
+    
+    %% Security Monitoring
+    subgraph "Security Monitoring"
+        KongGW -->|Security Events| Falco[Falco<br/>Runtime Security]
+        K8sAPI -->|Audit Logs| AuditLog[Kubernetes Audit Logs]
+        Falco -->|Alerts| SecurityDashboard[Security Dashboard<br/>Grafana]
+        AuditLog -->|Analysis| SecurityDashboard
+        MicroservicesPods -->|OWASP Scan| ZAP[OWASP ZAP<br/>DAST Testing]
+    end
+    
+    %% Backup & Disaster Recovery
+    subgraph "Backup & DR"
+        MongoDBStateful -->|Backup| Velero[Velero<br/>Backup & Restore]
+        PostgresStateful -->|Backup| Velero
+        RedisStateful -->|Backup| Velero
+        Velero -->|Store| S3Backup[S3/Cloud Storage<br/>Encrypted Backups]
+    end
+    
+    %% Secrets Management
+    subgraph "Secrets Management"
+        K8sAPI -->|Sealed Secrets| SealedSecrets[Sealed Secrets Controller]
+        K8sAPI -->|External Secrets| ExternalSecrets[External Secrets Operator]
+        ExternalSecrets -->|Sync| Vault[HashiCorp Vault<br/>AWS Secrets Manager]
+    end
+    
+    %% Styling
+    classDef cicd fill:#e3f2fd
+    classDef security fill:#ffebee
+    classDef monitoring fill:#f3e5f5
+    classDef kubernetes fill:#e8f5e9
+    classDef storage fill:#fff3e0
+    
+    class Jenkins,ArgoCD,DockerRegistry cicd
+    class SecurityScanning,Snyk,GitGuardian,TrivyScan,Falco,ZAP,KongGW security
+    class Prometheus,Grafana,Loki,Jaeger monitoring
+    class K8sAPI,Ingress,MicroservicesPods,UserPods,CinemaPods,BookingPods,PaymentPods,NotificationPods kubernetes
+    class MongoDBStateful,PostgresStateful,RedisStateful,RabbitMQStateful,Velero,S3Backup storage
+```
+
 ## 📋 Table of Contents
 
 - [Architectural Decisions](#architectural-decisions)
